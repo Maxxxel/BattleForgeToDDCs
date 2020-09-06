@@ -1,6 +1,6 @@
 # BattleForgeToDDCs 
 ### About
-This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create a universal file (GLTF) for multiple DDCs to edit.
+This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create a universal file (GLTF) for use in multiple DDCs like Blender, Maya, Houdini, 3dsMax, etc...
 
 <img src="https://i.gyazo.com/51a830c1b9aaefcafeedaf3ecd8edee8.png" alt="ice_barrier_gltf" width="400" height="400">
 
