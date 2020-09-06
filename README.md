@@ -15,7 +15,7 @@ TBD
 - [pygltflib](https://gitlab.com/dodgyville/pygltflib)
 
 ### To-Do
-- [x] DRS READ
+- [x] DRS Parsing & Reading
 - [X] Convert DRS Geometry (Points, Faces) to GLTF
 - [ ] Convert Normals, UVs, (TBD: Tangents) to GLTF
 - [ ] Embed Textures, Materials and Gemetry into single GLB File (Binary GLTF) -> Basically Plug-And-Edit
