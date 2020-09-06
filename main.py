@@ -8,19 +8,10 @@ import ctypes
 import pfp
 import struct
 #GLTF EXPORT
+import operator
 from pygltflib import GLTF2 as G2, Scene as SC, Accessor as AC, Buffer as BU, BufferView as BV, BufferFormat as BF, Asset as AS, Mesh as MS, Node as NO, Primitive as PM, Attributes as ATTB
 from pygltflib.validator import validate, summary
 
-import operator
-
-from gltflib import (
-    GLTF, GLTFModel, Asset, Scene, Node, Mesh, Primitive, Attributes, Buffer, BufferView, Accessor, AccessorType,
-    BufferTarget, ComponentType, GLBResource, FileResource)
-
-from pprint import PrettyPrinter
-
-
-pp = PrettyPrinter(indent=2,width=4,depth=2)
 ### FUNCTIONS ###
 # CREDIT: llasram, jscs @ Stackoverflow
 def unpack_string(data):
@@ -126,7 +117,7 @@ for f in files:
 
             #TOTAL DATA:
             data_bytearray = position_bytearray + faces_bytearray
-            print('---DATA---\nByteLen: ', len(data_bytearray))
+            print('--- DATA ---\nByteLen: ', len(data_bytearray))
 
             data_path = abs_path.replace(".drs", "_data.bin")
 
