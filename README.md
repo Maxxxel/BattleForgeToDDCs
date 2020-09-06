@@ -8,7 +8,8 @@ This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create
 
 
 ### How to use
-TBD
+- Renamve the dev_env.json.example to dev_env.json
+- Edit the Path to the master folder of all DRS (It will search all subfolders for .drs files)
 
 ### Dependencies
 - [pfp](https://github.com/d0c-s4vage/pfpu)
