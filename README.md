@@ -1,4 +1,4 @@
-# BattleForgeToDDCs 
+# BattleForgeToDDCs
 ### About
 This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create a universal file (GLTF) for multiple DDCs to edit.
 
@@ -12,9 +12,10 @@ TBD
 ### To-Do
 - [x] DRS READ
 - [X] Convert DRS Geometry (Points, Faces) to GLTF
+- [ ] Add Decal, Damage Model and Model into one GLTF File
 - [ ] Convert Normals, UVs, (TBD: Tangents) to GLTF
 - [ ] Embed Textures, Materials and Gemetry into single GLB File (Binary GLTF) -> Basically Plug-And-Edit
-- [ ] Joints, Animations 
+- [ ] Joints, Animations
 
 ### Credit
 - CrazyCockerell (QuickBMS Script for mass-exporting of Battle Forges PAK-Files!)
