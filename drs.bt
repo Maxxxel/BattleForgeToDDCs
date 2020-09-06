@@ -1,0 +1,760 @@
+//Definitions
+struct CString
+{
+    int Length;
+    char Text[Length];
+};
+
+struct Point
+{
+    float X;
+    float Y;
+    float Z;
+};
+
+struct Point4D
+{
+    float X;
+    float Y;
+    float Z;
+    float W;
+};
+
+struct Point2D
+{
+    float X;
+    float Y;
+};
+
+struct Face
+{
+    short Indices[3];
+};
+
+
+struct CGeoMesh //seems to rebuild the MeshFile, but with fewer vertices (meshfile seems to have each triangle twice anyway)
+{
+    int magic;
+    int IndexCount;
+
+    if (IndexCount > 0)
+        Face Faces[IndexCount/3];
+
+    int VertexCount;
+
+    if (VertexCount > 0)
+    {
+        Point4D Vertices[VertexCount];
+    }
+};
+
+struct CSkSkinInfo
+{
+    int Version;
+    int VertexCount;
+
+    struct _VertexWeight
+    {
+        float Weights[4];
+        int BoneIndices[4];
+    } VertexWeights[VertexCount];
+};
+
+struct CDspMeshFile
+{
+    int magic;
+    local int unknown = -1;
+    local int MeshCount = 0;
+    if(magic==1314189598){
+        int tmp <hidden=true>;
+        unknown = tmp;
+        int tmp2 <hidden=true>;
+        MeshCount = tmp2;
+
+    } else {
+        MeshCount = magic;
+    }
+
+    Point BoundingBoxLowerLeftCorner1;
+    Point BoundingBoxUpperRightCorner1;
+
+    struct sthMesh{
+
+        int VertexCount;
+        int FaceCount;
+
+        Face Faces[FaceCount];
+
+
+        byte MeshCount;
+
+
+        struct _Mesh
+        {
+            int FVF;
+            int VertexSize;
+
+            if(FVF == 133121){
+                struct _Vertex{
+                    Point vertex;
+                    Point vertexNormal;
+                    Point2D vertexTexture;
+                } Vertex[VertexCount];
+            } else if(FVF==12288){
+                struct FVF30{
+                    float uk[6];
+                } fvf30[VertexCount];
+
+
+            } else {
+                Printf( "unknown FVF: 0x%X \n", FVF); // CDspStaticMesh::LoadVertices for further analysis
+                float VertexData[VertexCount * VertexSize/4] <fgcolor=cRed>;
+            }
+
+         } Meshes[MeshCount] <optimize=false>;
+
+
+        Point BoundingBoxLowerLeftCorner2; //seems like same BB as before
+        Point BoundingBoxUpperRightCorner2;
+
+        short materialID;
+        int materialParameters;
+        struct TextureParameter {
+            int Identifier;
+            CString Name;
+            int postString;
+        };
+
+        struct TextureParameters
+        {
+            int Length;
+            TextureParameter TextureParameters[Length] <optimize=false>;
+        };
+
+        struct ColorParameter {
+            int Identifier;
+            int R;
+            int G;
+            int B;
+        };
+
+        struct ColorParameters {
+            int Length;
+            ColorParameter colorParameters[Length];
+        };
+
+        struct ScalarParameter {
+            int Identifier;
+            float Value;
+        };
+
+        struct ScalarParameters {
+            int Length;
+            ScalarParameter scalarParameters[Length];
+        };
+
+        struct IntegerParameter {
+            int Value;
+        };
+
+        struct IntegerParameters {
+            int Length;
+            IntegerParameter integerParameters[Length];
+        };
+
+        struct StringParameter {
+            CString Name;
+        };
+
+        struct StringParameters
+        {
+            int Length;
+            StringParameter stringParameters[Length] <optimize=false>;
+        };
+
+        struct VectorParameter {
+            int Identifier;
+            Point4D Value;
+        };
+
+        struct VectorParameters {
+            int Length;
+            VectorParameter vectorParameters[Length];
+        };
+        if(materialParameters == -86061050){
+
+            int sthOfMaterialCore;
+            int boolParamTransfer;
+
+            TextureParameters textureParameters;
+            ColorParameters colorParameters;
+            ScalarParameters scalarParameters;
+            IntegerParameters integerParameters;
+            StringParameters stringParameters;
+            VectorParameters vectorParameters;
+        } else if (materialParameters == -86061051 || materialParameters == -86061052) {
+            int sthOfMaterialCore;
+            int boolParamTransfer; //<- boolParamTransfer = ((unsigned int)boolParamTransfer | 1); for 0xFACED0004
+
+            TextureParameters textureParameters;
+            ColorParameters colorParameters;
+            ScalarParameters scalarParameters;
+            IntegerParameters integerParameters;
+            StringParameters stringParameters;
+        } else if (materialParameters == -86061053) {
+            int boolParamTransfer;
+
+            TextureParameters textureParameters;
+            ColorParameters colorParameters;
+            ScalarParameters scalarParameters;
+            IntegerParameters integerParameters;
+            StringParameters stringParameters;
+        } else if (materialParameters == -86061054) {
+            int boolParamTransfer;
+
+            TextureParameters textureParameters;
+            ColorParameters colorParameters;
+            ScalarParameters scalarParameters;
+            IntegerParameters integerParameters;
+        } else if (materialParameters == -86061055) {
+            int boolParamTransfer; ////<- boolParamTransfer = ((unsigned int)boolParamTransfer | 1);
+
+            TextureParameters textureParameters;
+            ColorParameters colorParameters;
+            ScalarParameters scalarParameters;
+        } else {
+            Printf( "unknown materialParameter: 0x%X \n", materialParameters); //CDspMaterialCore::ReadParameters for more
+
+        }
+    } meshes[MeshCount] <optimize=false>;
+
+    //Otherwise, Point0=(0,0,0,1) UPoint=(1,1,0,0) VPoint=(0,0,1,1)
+    if(unknown >= 0){
+        Point4D Point0;
+        Point4D UPoint;
+        Point4D VPoint;
+    }
+};
+
+
+struct CSkSkeleton
+{
+    int Version;
+    int Unknown1;
+
+    int BoneMatrixCount;
+    struct BoneMatrix
+    {
+        struct BoneVertex
+        {
+            float X;
+            float Y;
+            float Z;
+            int ParentReference; //parentRef[0] = parent index, parentRef[1] = index into CSkSkeleton.dBone array, used in SKA
+        } BoneVertices[4];
+    } BoneMatrices[BoneMatrixCount];
+
+    int BoneCount;
+    struct Bone
+    {
+        int Version;
+
+        int Identifier;
+        CString Name;
+
+        int ChildCount;
+        if (ChildCount > 0)
+            int Children[ChildCount];
+    } Bones[BoneCount] <optimize=false>;
+
+    float Unknown2[16];
+};
+
+struct CDspJointMap
+{
+    int Version;
+    int JointGroupCount;
+
+    if (JointGroupCount > 0)
+    {
+        struct _JointGroup
+        {
+            int JointCount;
+            if (JointCount > 0)
+                short JointIndices[JointCount];
+        } JointGroups[JointGroupCount] <optimize=false>;
+    }
+};
+
+struct AnimationSet
+{
+    CString Magic;
+	if (Strcmp(Magic.Text, "Battleforge") != 0) Printf("\nerror bad magic AnimSet\n");
+    int Count; //Should be <= 6
+    if(Count>6) Printf("\nerror count >6\n");
+
+    float Unknown1;
+    float Unknown2;
+    int Version;
+
+    if (Count >= 6) //> should not happen -> Count == 6
+    {
+        if (Version >= 2)
+        {
+            byte Unknown4;
+            byte Unknown5;
+        }
+
+        if (Version >= 5)
+        {
+            float Unknown6;
+            float Unknown7;
+            float Unknown8;
+        }
+
+        if (Version >= 6)
+            byte Unknown9;
+    }
+
+    int ModeAnimationKeyCount;
+
+    struct _ModeAnimationKey
+    {
+        int Type;
+        CString Magic2;
+        int Unknown11;
+
+        if (Type == 1)
+        {
+            int Unknown12;
+            short Unknown13;
+            int Unknown14;
+            byte Unknown15;
+            int Unknown16;
+            int Unknown17;
+            int Unknown18;
+            byte Unknown19;
+        }
+        else if (Type == 2 || Type == 3 || Type == 4 || Type == 5)
+        {
+            int Unknown20;
+            short Unknown21;
+        }
+        else if (Type == 6)
+        {
+            int Unknown22;
+            short Unknown23;
+            int Unknown24;
+            short Unknown24;
+        } else Printf("\n uk modeAnimType %d\n",Type);
+
+        int UnknownLength;
+
+        struct _UnknownStructure
+        {
+            int Unknown25;
+            int Unknown26;
+            CString Unknown27;
+
+            if (Unknown25 >= 4)
+            {
+                int Unknown28;
+                int Unknown29;
+            }
+
+            if (Unknown25 >= 5)
+            {
+                byte Unknown30;
+            }
+
+            if (Unknown25 >= 7)
+            {
+                byte Unknown31;
+            }
+        } Unknowns[UnknownLength] <optimize=false>;
+    } AnimationKeys[ModeAnimationKeyCount] <optimize=false>;
+
+
+    if (Count >= 3)
+    {
+        short Unknown32;
+
+        if (Unknown32 >= 1)
+        {
+            int len;
+
+            struct UnknownStruct123{
+                int uk123;
+
+                short uk124;
+                if(uk124>=1){
+
+                    int uk125;
+                    int uk126;
+
+                    struct UKStruct1234{
+                        short uk1234;
+                        if(uk1234==1){
+                            int uk1236[5];
+                        }
+                    } uk1234[3] <optimize=false>;
+                }
+                if(uk124>=2){
+                    short uk127;
+                }
+
+            } unknown123[len] <optimize=false>;
+
+
+
+
+        }
+
+        if (Unknown32 >= 2)
+        {
+            int len1;
+            struct _UnknownStruct2
+            {
+                int Unknown36;
+                int Unknown37;
+                int Unknown38;
+            } Unknowns2[len1];
+        }
+    }
+
+
+    if (Count >= 4)
+    {
+        short Unknown39;
+        if (Unknown39 == 2)
+        {
+            int Unknown40;
+
+            struct _UnknownStruct3
+            {
+                int Unknown41;
+                CString Unknown42;
+                int Unknown43;
+                int Unknown44;
+
+                struct _UnknownStruct4
+                {
+                    int Unknown45;
+                    int Unknown46;
+                    int Unknown47;
+                    int Unknown48;
+
+                    int Unknown49;
+                    int Unknown50;
+                    int Unknown51;
+                    int Unknown52;
+                } Unknowns4[Unknown44];
+            } Unknowns3[Unknown40] <optimize=false>;
+        }
+        else if (Unknown39 == 1)
+        {
+            int Unknown53;
+
+            struct _UnknownStruct5
+            {
+                int Unknown54;
+                CString Unknown55;
+                int Unknown56;
+                int Unknown57;
+
+                struct _UnknownStruct6
+                {
+                    int Unknown58;
+                    int Unknown59;
+                    int Unknown60;
+                    int Unknown61;
+                    int Unknown62;
+                } Unknowns6[Unknown57];
+            } Unknowns5[Unknown53] <optimize=false>;
+        }
+    }
+};
+
+
+
+struct AnimationTimings{
+    int magic;
+
+    if(magic==1650881127){
+        short version;
+
+
+        struct Time{
+            short len;
+            struct Sth8{
+                int uk;
+                if(version==4 || version == 2 || version == 3){
+                    int uk2;
+                    short uk;
+                }
+                short len2;
+
+                struct Sth9{
+                    byte uk;
+                    if(version==4) byte uk2;
+                    short len3;
+                    struct Sth10{
+                        int uk[6];
+                    } sth10[len3]  <optimize=false>;
+                } sth9[len2] <optimize=false>;
+            } sth8[len] <optimize=false>;
+        } time <optimize=false>;
+
+
+        if(version==3 || version==4) {
+            struct TimeV3{
+                int len;
+                struct Sth7{
+                    int uk[2];
+                } sth7[len];
+            } time3 <optimize=false>;
+        }
+    } else Printf("\nbad animTimings magic\n");
+
+};
+
+
+struct DrwResourceMeta {
+    int uk[2];
+    CString uk;
+};
+
+
+struct SthSound{
+	byte sthSoundFile;
+	short uk;
+	int uk1[5];
+	CString uk2;
+};
+
+struct EffectSet{
+    short type;
+    CString checksum;
+
+    if(type == 10 || type == 11 || type == 12){
+        if(type==10) byte uk[20];
+        int len;
+
+        struct skelEff{
+            CString skelFileName;
+            int len1;
+            struct WavHolder{
+                int uk2[2];
+                float one;
+                int uk3[7];
+				if(type>=12) byte uk4;
+                byte FF;
+                int len2;
+                struct Wav{
+                    byte id;
+                    CString wavFileName;
+                } wav[len2] <optimize=false>;
+            } wavHolder[len1] <optimize=false>;
+        } skelEffekts[len] <optimize=false>;
+
+		short len4;
+		struct Uks3{
+            short uk1;
+            int uk2[5];
+            short uk3;
+			short len6;
+			SthSound sthSound2[len6] <optimize=false>;
+		} uks3[len4] <optimize=false>;
+
+
+
+
+		short len3;
+		struct Uks1{
+			short uk;
+			int uk1[5];
+			short uk2;
+			short len4;
+			struct Uks2{
+				short uk;
+				int uk1[5];
+				short uk2;
+				short len5;
+				SthSound sthSound[len5];
+			} uks2[len4] <optimize=false>;
+		} uks1[len3] <optimize=false>;
+
+
+
+    } else if(type == 7 || type == 8 || type == 9){//needs testing, no file with this type found
+		Printf("\nwarning, untested code");
+        short len6;
+		struct Uks4{
+			short uk;
+			short len7;
+			SthSound sthSound3[len7];
+		} uks4[len6] <optimize=false>;
+
+		short len8;
+		struct Uks5{
+			short uk1;
+			short len9;
+			SthSound sthSound4[len9];
+		} uks5[len8] <optimize=false>;
+
+
+
+	}
+
+};
+
+struct CDrwLocatorList{
+    int uk;
+    int version;
+    if(version==4){
+		int len;
+		struct UK2{
+            int uk1[12];
+			int uk3[2];
+			CString str2;
+		} uk2[len]  <optimize=false>;
+    } else if(version==5){
+        int len;
+        struct Uk1{
+            int uk1[12];
+            int uk2[2];
+            CString str;
+            int uk3;
+        } uk1[len] <optimize=false>;
+
+    } else Printf("\nnot implemented locator list version %d\n",version);
+};
+
+struct CGeoOBBTree{
+	int magic;
+	if(magic==1845540702){
+		int id;
+		if(id==1){
+			byte uk[4096];
+		} else if(id==2){
+			byte uk[4096];
+			int len1;
+			struct Uks123{
+				int64 uk1;
+				short uk2[3];
+				short uk3;
+			} uks123[len1];
+		} else if(id==3){
+			int len2;
+			float asd[len2*64/4];
+			int len3;
+			short uk6[len3*3];
+
+
+		}
+
+	} else Printf("\n invalid obb tree file\n");
+
+
+};
+
+
+local string filter = "*";
+
+//Structure
+int Magic <fgcolor=cBlue>; //0xC57CF11E
+if(Magic==-981667554){
+	int NumberOfModels <fgcolor=cBlue>; //Must be 1; confirmed everywhere 1
+
+	int NodeInformationOffset <fgcolor=cBlue>;
+	int NodeHierarchyOffset <fgcolor=cBlue>;
+	uint NodeCount <fgcolor=cBlue>; //Node count
+
+	if (NodeCount != 0)
+	{
+		FSeek(NodeInformationOffset);
+
+		struct _RootNodeInfo{
+			byte zeros[16]; //confirmed zero
+			int negOne <format=hex>; //confirmed
+			int one;//confirmed
+			int uk2;
+			int zero;//confirmed zero
+		} RootNodeInfo <fgcolor=cBlue>;
+
+		struct _NodeInformation
+		{
+			int magic;
+			int Identifier;
+			int Offset;
+			int Size;
+			byte uk[16]; // set to 0 didnt break anything
+		} NodeInformation[NodeCount-1] <fgcolor=cBlue>;
+
+
+		FSeek(NodeHierarchyOffset);
+
+		struct _RootNode
+		{
+			int RootIdentifier;
+			int Unknown;
+			CString rootName;
+		} RootNode <fgcolor=cBlue>;
+
+		local int i = 1;
+		struct _Node
+		{
+			local int NodeIndex = i;
+			int InfoIndex;
+			CString Name;
+			int Unknown; //ChildCount?
+
+			local int j;
+			local int64 oldPosition;
+			for (j = NodeCount-2; j >= 0; j--)
+			{
+				if (NodeInformation[j].Identifier != NodeIndex)
+					continue;
+
+				oldPosition = FTell();
+				FSeek(NodeInformation[j].Offset);
+				if (NodeInformation[j].Size > 0)			//CGeoPrimitiveContainer always has size 0
+				{
+                    if(Strcmp(Name.Text,filter)==0 || Strcmp("*",filter)==0){
+						if (Strcmp(Name.Text, "CGeoMesh") == 0)
+							CGeoMesh Mesh;
+						else if (Strcmp(Name.Text, "CDspJointMap") == 0)
+							CDspJointMap JointMap;
+						else if (Strcmp(Name.Text, "CSkSkinInfo") == 0)
+							CSkSkinInfo SkinInfo;
+						else if (Strcmp(Name.Text, "CSkSkeleton") == 0)
+							CSkSkeleton Skeleton;
+						else if (Strcmp(Name.Text, "CDspMeshFile") == 0)
+							CDspMeshFile MeshFile;
+						else if (Strcmp(Name.Text, "AnimationSet") == 0)
+							AnimationSet AnimationsSet;
+						else if (Strcmp(Name.Text, "AnimationTimings") == 0)
+							AnimationTimings animationTimings;
+						else if (Strcmp(Name.Text, "DrwResourceMeta") == 0)
+							DrwResourceMeta drwResourceMeta;
+						else if (Strcmp(Name.Text, "EffectSet") == 0)
+							EffectSet effectSet;
+						else if (Strcmp(Name.Text, "CDrwLocatorList") == 0)
+							CDrwLocatorList locList;
+						else if (Strcmp(Name.Text, "CGeoOBBTree") == 0)
+							CGeoOBBTree obbTree;
+						else {
+							Printf("\nunknown Node Name %s \n",Name.Text);
+							byte Data[NodeInformation[j].Size];
+						}
+					}
+				}
+				FSeek(oldPosition);
+				break;
+			}
+
+			i = i + 1;
+		} Nodes[NodeCount-1] <optimize=false, fgcolor=cBlue>;
+	}
+	//Printf("\n");
+} else Printf("\n unknown drs magic");

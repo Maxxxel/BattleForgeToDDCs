@@ -129,5 +129,8 @@ dmypy.json
 .pyre/
 
 # Custom
-dev.env
-dev.env.example
+dev_env.json
+/files
+/archive
+lextab.py
+yacctab.py
