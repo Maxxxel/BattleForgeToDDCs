@@ -19,7 +19,7 @@ This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create
 - [x] DRS Parsing & Reading
 - [X] Convert DRS Geometry (Points, Faces) to GLTF
 - [ ] Add Decal, Damage Model and Model into one GLTF File
-- [ ] Convert Normals, UVs, (TBD: Tangents) to GLTF
+- [x] Convert Normals, UVs, (~TBD: Tangents~ no Tangents in the mesh) to GLTF
 - [ ] Embed Textures, Materials and Gemetry into single GLB File (Binary GLTF) -> Basically Plug-And-Edit
 - [ ] Joints, Animations
 
