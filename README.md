@@ -9,19 +9,21 @@ This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create
 
 ### How to use
 - Renamve the dev_env.json.example to dev_env.json
-- Edit the Path to the master folder of all DRS (It will search all subfolders for .drs files)
+- Edit the Path to the master folder of all DRS/DDS Files (It will search all subfolders for .drs and .dds files)
 
 ### Dependencies
 - [pfp](https://github.com/d0c-s4vage/pfpu)
 - [pygltflib](https://gitlab.com/dodgyville/pygltflib)
+- [Pillow](https://github.com/python-pillow/Pillow)
 
 ### To-Do
 - [x] DRS Parsing & Reading
 - [X] Convert DRS Geometry (Points, Faces) to GLTF
-- [ ] Add Decal, Damage Model and Model into one GLTF File
-- [ ] Convert Normals, UVs, (TBD: Tangents) to GLTF
-- [ ] Embed Textures, Materials and Gemetry into single GLB File (Binary GLTF) -> Basically Plug-And-Edit
-- [ ] Joints, Animations
+- [x] Convert Normals, UVs to GLTF
+- [ ] ~Add Decal, Damage Model and Model into one GLTF File~ does not make a whole lot of sense. might at as a QOL-feature later.
+- [x] Redo Search Algorithm. (Take into account: "Model Groups", shared decal textures in different location)
+- [ ] Embed Textures, Materials and Gemetry into single GLTF
+- [ ] Joints, Animations (from SKA)
 
 ### Credit
 - CrazyCockerell (QuickBMS Script for mass-exporting of Battle Forges PAK-Files!)
