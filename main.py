@@ -11,7 +11,8 @@ import struct
 #GLTF EXPORT
 import base64
 import operator
-from pygltflib import GLTF2 as G2, Scene as SC, Accessor as AC, Buffer as BU, BufferView as BV, BufferFormat as BF, Asset as AS, Mesh as MS, Node as NO, Primitive as PM, Attributes as ATTB
+from pygltflib import GLTF2 as G2, Scene as SC, Accessor as AC, Buffer as BU, BufferView as BV, BufferFormat as BF, Asset as AS, Mesh as MS, Node as NO, Primitive as PM, Attributes as ATTB, Material as MAT
+import pygltflib
 from pygltflib.validator import validate, summary
 # DDS TO PNG
 from PIL import Image
@@ -25,19 +26,11 @@ def unpack_string(data):
     string = struct.unpack(fmt.format(size), data)[0].decode()
     return string
 
-def dataString(list_of_lists):
-    master_string = ''
-    lst_len = []
-    for list in list_of_lists:
-        temp = ', '.join(map(str, list))
-        lst_len.append(len(temp))
-        master_string += ', '.join(map(str, list))
-
-    return master_string, lst_len
-
-def convertDDStoPNG(path):
-    im = Image.open(path).save(path.replace('.dds','.png'))
-
+def convertDDStoPNG(img_path):
+    try:
+        Image.open(img_path).save(img_path.replace('.dds','.png'))
+    except:
+        print('file not found. Note: Probably a texture for debris but they use the default texture set')
 # GENERAL FUNCTION TO CONVERT A LIST OF SCALAR, VECTORS, ETC TO BYTE ARRAYS!
 def makeByteArrayFromList(list, mode, type):
     out_bytearray = None
@@ -52,7 +45,7 @@ def makeByteArrayFromList(list, mode, type):
         count = len(list)
 
         return out_bytearray, byte_length, min_val, max_val, count
-    if mode == 'VEC':
+    elif mode == 'VEC':
         out_bytearray = bytearray()
         for t in list:
             tulpe_len = len(t)
@@ -64,34 +57,96 @@ def makeByteArrayFromList(list, mode, type):
         max_val = [max([operator.itemgetter(i)(item) for item in list]) for i in range(tulpe_len)]
         count = len(list)
 
-        return out_bytearray, byte_length, min_val, max_val, count
+
+    return out_bytearray, byte_length, min_val, max_val, count
 
 # SEARCH FILE SYSTEM AND RETURN FILES
 def searchFileSystem(main_path):
     main_list = []
-    for r, d, f in os.walk(WORKING_DIR):
+    # LOOP OVER MAIN PATH
+    for r, d, f in os.walk(main_path):
+        # FILTER FOR FILES
         drss = fnmatch.filter(f, '*.drs')
-        imgs = fnmatch.filter(f, '*.dds')
+        imgs = []
 
+        # CLEAN DEBRIS FOLDER FROM IMG PATH
+        for file in os.listdir(r.replace('\\meshes', '')):
+            imgs.append(file.replace('\\meshes', ''))
+        imgs = fnmatch.filter(imgs, '*.dds')
+
+        # IF THE GUY WHO MADE THE NAMING SCHEME FOR BATTLEFORGE READS THIS:
+        # -> PLEASE THINK OF A BETTER NAMING SCHEMES ... It is annoying to reverse :D
+        # f.E: [AssetType]_[Fraction]_[AssetName*]_{Suffix}.{extension}
+        # -> Asset Name should be {Pascal,Camel}Case and not snake_case like the other parts.
+
+        # FOR EACH DRS FIND FILE AND TEXTURES
         for file in drss:
-            name = file.split('.')[0]
-            file = os.path.join(r, file)
-            regex = '('+name+'\_[a-z]{3}\.dds)|('+name+'\.drs)'
-            rel_img = []
-            for img in imgs:
-                if re.match(regex, img):
-                    rel_img.append(os.path.join(r ,img))
+            model_dict = dict()
+            sub_strings = file.split('.')[0].split('_')
+            # FILE PATH (RELATIVE)
+            model_dict['filepath'] = os.path.join(r, file)
+            # CHECK IF TYPE EXISTS
+            name_offset = 0
+            regex_type = r'(unit)|(building)|(fortification)|(object)'
+            try:
+                end_type = [i for i, s_item in enumerate(sub_strings) if re.search(regex_type, s_item)][0]
+                model_dict['type'] = sub_strings[end_type]
+                name_offset +=1
+            except:
+                model_dict['type'] = ''
+            # CHECK IF VARIANT EXISTS
+            regex_variant = r"(lostsouls)|(twilight)|(stonekin)|(bandit)|(frost)|(nature)|(fire)|(shadow)|(quest)|(legendary)"
+            try:
+                end_variant = [i for i, s_item in enumerate(sub_strings) if re.search(regex_variant, s_item)][0]
+                model_dict['variant'] = sub_strings[end_variant]
+                name_offset +=1
+            except:
+                model_dict['variant'] = ''
 
-            if len(rel_img) != 0:
-                data = [file, rel_img]
-                main_list.append(data)
+            #FIND END OF ASSET NAME
+            regex_name = r"(decal)|(module[0-9]*)" # MAYBE ADD MORE BUT NOT FOR NOW
+            try:
+                end_name = [i for i, s_item in enumerate(sub_strings) if re.search(regex_name, s_item)][0]
+            except:
+                end_name = len(sub_strings)
+            model_dict['name'] = '_'.join(sub_strings[name_offset:end_name])
+            model_dict['suffix'] = '_'.join(sub_strings[end_name:])
+
+            # UNIT TEXTURES
+            if model_dict['type'] == 'unit' and model_dict['suffix'] == '':
+                tex_pat = r'[a-zA-Z_]{'+str(len(model_dict['type'])) + ',' + str(len(model_dict['type'])+1)+'}[a-zA-Z_]{'+str(len(model_dict['variant'])) + ',' + str(len(model_dict['variant'])+1)+'}'+model_dict["name"]+'_[a-zA-Z]*\.dds'
+
+                tmp_list = []
+                print(tex_pat)
+                for img in imgs:
+                    if re.match(tex_pat, img):
+                        tmp_list.append(os.path.join(r ,img))
+                model_dict['textures'] = tmp_list
+            # DECALS OF BUILDINGS
+            elif model_dict['type'] == 'building' and model_dict['suffix'] == 'decal':
+                tex_pat = r'[a-zA-Z_]{'+str(len(model_dict['type'])) + ',' + str(len(model_dict['type'])+1)+'}[a-zA-Z_]{'+str(len(model_dict['variant'])) + ',' + str(len(model_dict['variant'])+1)+'}'+model_dict["name"] + '_' + model_dict['suffix'] +'_[a-zA-Z]*\.dds'
+                tmp_list = []
+                print(tex_pat)
+                for img in imgs:
+                    if re.match(tex_pat, img):
+                        tmp_list.append(os.path.join(r ,img))
+                model_dict['textures'] = tmp_list
+            # GENERAL BUILDING MODULES
+            elif model_dict['type'] == 'building' and re.match(r'module[0-9]*.*', model_dict['suffix']):
+                tex_pat = r'[a-zA-Z_]{'+str(len(model_dict['type'])) + ',' + str(len(model_dict['type'])+1)+'}[a-zA-Z_]{'+str(len(model_dict['variant'])) + ',' + str(len(model_dict['variant'])+1)+'}'+model_dict["name"]+'_[a-zA-Z]*\.dds'
+                print(imgs)
+                tmp_list = []
+                for img in imgs:
+                    if re.match(tex_pat, img):
+                        tmp_list.append(os.path.join(r ,img))
+                model_dict['textures'] = tmp_list
+
+            main_list.append(model_dict)
 
     pp.pprint(main_list)
     return main_list
 
-
-
-
+# PARSE FILE
 def parseDRStoLists(abs_file_path, abs_bt_path):
     print('------ IN ------> ', abs_file_path)
     # READ DRS FILE
@@ -165,16 +220,17 @@ master_list = searchFileSystem(WORKING_DIR)
 
 #FOR EACH FILE
 for model in master_list:
-    file_name = os.path.split(model[0])[1]
-    abs_path = os.path.abspath(model[0])
+    file_name = model["name"]
+    abs_path = os.path.abspath(model["filepath"])
     abs_bt = os.path.abspath("drs.bt")
-    #CONVERT IMAGES TO PNG / BASE64 STRING
-    for img in model[1]:
-        img_name = os.path.split(img)[1]
-        img_path = os.path.abspath(img)
-        convertDDStoPNG(img_path)
 
-    print(file_name, abs_path, abs_bt)
+    print('NAME: ', file_name, '\nUSING DRS:', abs_path, '\nUSING BT: ', abs_bt, '\nIMGs:')
+    #CONVERT IMAGES TO PNG
+    for img in model["textures"]:
+        print(os.path.abspath(img))
+        print(os.path.abspath(img).replace('\\meshes', ''))
+        convertDDStoPNG(os.path.abspath(img).replace('\\meshes', ''))
+
     #PARSE FILE TO LISTS
     list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs = parseDRStoLists(abs_path, abs_bt)
 
@@ -195,9 +251,12 @@ for model in master_list:
     uvs_bytearray, uvs_bytelen, uvs_mins, uvs_maxs, uvs_count = makeByteArrayFromList(list_VEC2_uvs, 'VEC', 'f')
     print('--- UVs ---\nByteLen: ', uvs_bytelen,'\n Min: ', uvs_mins,'\n Max: ', uvs_maxs,'\n Count: ', uvs_count)
 
-    #TOTAL DATA:
+    #TOTAL GEO DATA:
     data_bytearray = position_bytearray + faces_bytearray + normals_bytearray + uvs_bytearray
     print('--- DATA ---\nByteLen: ', len(data_bytearray))
+
+    # CONVERT TEXTURES TO IMAGE BUFFER
+
 
     ### MAKE GLTF FILE ###
     # EMBEDDED IMG FILES
@@ -219,7 +278,13 @@ for model in master_list:
     nor_ac = AC(name="ac_nor", bufferView=2, componentType=5126, min=normals_mins, max=normals_maxs, count=normals_count, type="VEC3", normalized=True)
     uvs_ac = AC(name="ac_uvs", bufferView=3, componentType=5126, min=uvs_mins, max=uvs_maxs, count=uvs_count, type="VEC2")
     # PRIM -> MESH -> NODE -> SCENE
-    prim = PM(attributes=ATTB(0,2,TEXCOORD_0=3), indices = 1) #<-- ADD NORMALS. UVS, BONES - ACs here!
+    mat_name = 'MI_' + file_name
+    mat_data = {"diffuseFactor" : [1.0,0.0,0.0,1.0], "specularFactor": [ 1.0, 0.766, 0.336 ], "glossinessFactor": 0.1}
+    extension = {"KHR_materials_pbrSpecularGlossiness": mat_data}
+    mat = MAT(name=mat_name, extensions=extension)
+    # PRIM -> MESH -> NODE -> SCENE
+    prim = PM(attributes=ATTB(0,2,TEXCOORD_0=3), indices = 1, material=0) #<-- ADD NORMALS. UVS, BONES - ACs here!
+
     mesh = MS(primitives=[prim])
     node = NO(mesh=0)
     scene = SC(nodes=[0])

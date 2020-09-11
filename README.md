@@ -29,4 +29,5 @@ This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create
 - CrazyCockerell (QuickBMS Script for mass-exporting of Battle Forges PAK-Files!)
 - bobfrog (pfp-DRS-Template & awseome prework!)
 - solcrow (Help + Awesome Unity Viewer and Exporter - Shown that its possible + Animation pfp-SKA-parse templates)
+- Kubik & LPeter1997 for their help!
 - [Skylords Reborn Team](https://forum.skylords.eu/) (In general for keeping the Game alive!)
