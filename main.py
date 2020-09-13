@@ -11,9 +11,11 @@ import struct
 #GLTF EXPORT
 import base64
 import operator
-from pygltflib import GLTF2 as G2, Scene as SC, Accessor as AC, Buffer as BU, BufferView as BV, BufferFormat as BF, Asset as AS, Mesh as MS, Node as NO, Primitive as PM, Attributes as ATTB, Material as MAT
 import pygltflib
+from pygltflib import GLTF2 as G2, Scene as SC, Accessor as AC, Buffer as BU, BufferView as BV, BufferFormat as BF, Asset as AS, Mesh as MS, Node as NO, Primitive as PM, Attributes as ATTB, Material as MAT, Image as IMG
 from pygltflib.validator import validate, summary
+
+from gltflib import (GLTF, GLTFModel, Asset, Scene, Node, Mesh, Primitive, Attributes, Buffer, BufferView, Accessor, AccessorType, BufferTarget, ComponentType, GLBResource, FileResource)
 # DDS TO PNG
 from PIL import Image
 
@@ -56,7 +58,6 @@ def makeByteArrayFromList(list, mode, type):
         min_val = [min([operator.itemgetter(i)(item) for item in list]) for i in range(tulpe_len)]
         max_val = [max([operator.itemgetter(i)(item) for item in list]) for i in range(tulpe_len)]
         count = len(list)
-
 
     return out_bytearray, byte_length, min_val, max_val, count
 
@@ -117,34 +118,69 @@ def searchFileSystem(main_path):
                 tex_pat = r'[a-zA-Z_]{'+str(len(model_dict['type'])) + ',' + str(len(model_dict['type'])+1)+'}[a-zA-Z_]{'+str(len(model_dict['variant'])) + ',' + str(len(model_dict['variant'])+1)+'}'+model_dict["name"]+'_[a-zA-Z]*\.dds'
 
                 tmp_list = []
-                print(tex_pat)
+                #print(tex_pat)
                 for img in imgs:
                     if re.match(tex_pat, img):
-                        tmp_list.append(os.path.join(r ,img))
+                        img_sub_string = img.split('.')[0].split('_')
+                        type = img_sub_string[len(img_sub_string)-1]
+                        if type == 'fluid':
+                            type = 'flu'
+                        tmp_list.append({"type":type, "path":os.path.join(r , img)})
                 model_dict['textures'] = tmp_list
             # DECALS OF BUILDINGS
             elif model_dict['type'] == 'building' and model_dict['suffix'] == 'decal':
                 tex_pat = r'[a-zA-Z_]{'+str(len(model_dict['type'])) + ',' + str(len(model_dict['type'])+1)+'}[a-zA-Z_]{'+str(len(model_dict['variant'])) + ',' + str(len(model_dict['variant'])+1)+'}'+model_dict["name"] + '_' + model_dict['suffix'] +'_[a-zA-Z]*\.dds'
                 tmp_list = []
-                print(tex_pat)
+                #print(tex_pat)
                 for img in imgs:
                     if re.match(tex_pat, img):
-                        tmp_list.append(os.path.join(r ,img))
+                        img_sub_string = img.split('.')[0].split('_')
+                        type = img_sub_string[len(img_sub_string)-1]
+                        if type == 'fluid':
+                            type = 'flu'
+                        tmp_list.append({"type":type, "path":os.path.join(r , img)})
                 model_dict['textures'] = tmp_list
             # GENERAL BUILDING MODULES
             elif model_dict['type'] == 'building' and re.match(r'module[0-9]*.*', model_dict['suffix']):
                 tex_pat = r'[a-zA-Z_]{'+str(len(model_dict['type'])) + ',' + str(len(model_dict['type'])+1)+'}[a-zA-Z_]{'+str(len(model_dict['variant'])) + ',' + str(len(model_dict['variant'])+1)+'}'+model_dict["name"]+'_[a-zA-Z]*\.dds'
-                print(imgs)
+                #print(imgs)
                 tmp_list = []
                 for img in imgs:
                     if re.match(tex_pat, img):
-                        tmp_list.append(os.path.join(r ,img))
+                        img_sub_string = img.split('.')[0].split('_')
+                        type = img_sub_string[len(img_sub_string)-1]
+                        if type == 'fluid':
+                            type = 'flu'
+                        tmp_list.append({"type":type, "path":os.path.join(r , img)})
                 model_dict['textures'] = tmp_list
 
             main_list.append(model_dict)
 
-    pp.pprint(main_list)
+    #pp.pprint(main_list)
     return main_list
+
+# PNG TO BYTE ARRAYS
+def makeImgFromImgList(img_list):
+    img_src_list = []
+    img_smp_list = []
+    img_tex_list = []
+
+    for i in range(len(img_list)):
+        img_dict = img_list[i]
+    #for img_dict in img_list:
+        tex_type = img_dict['type']
+        b64_data = base64.b64encode(open(img_dict['path'].replace('\meshes', '').replace('.dds','.png'), 'rb').read())
+        b64_data_string = b64_data.decode()
+        datauri_text = 'data:image/png;base64,' + b64_data_string
+        #print(datauri_text[:1000])
+        img_src_list.append(IMG(uri=datauri_text, name=tex_type))
+        img_tex_list.append(pygltflib.Texture(name=tex_type, source=i, sampler=0))
+
+    img_smp_list.append(pygltflib.Sampler())
+
+    #print(img_smp_list, img_tex_list)
+    return img_smp_list, img_src_list, img_tex_list
+
 
 # PARSE FILE
 def parseDRStoLists(abs_file_path, abs_bt_path):
@@ -227,9 +263,9 @@ for model in master_list:
     print('NAME: ', file_name, '\nUSING DRS:', abs_path, '\nUSING BT: ', abs_bt, '\nIMGs:')
     #CONVERT IMAGES TO PNG
     for img in model["textures"]:
-        print(os.path.abspath(img))
-        print(os.path.abspath(img).replace('\\meshes', ''))
-        convertDDStoPNG(os.path.abspath(img).replace('\\meshes', ''))
+        print(img['path'])
+        convertDDStoPNG(os.path.abspath(img['path']).replace('\\meshes', ''))
+        # CONVERT TO PBR
 
     #PARSE FILE TO LISTS
     list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs = parseDRStoLists(abs_path, abs_bt)
@@ -255,11 +291,10 @@ for model in master_list:
     data_bytearray = position_bytearray + faces_bytearray + normals_bytearray + uvs_bytearray
     print('--- DATA ---\nByteLen: ', len(data_bytearray))
 
-    # CONVERT TEXTURES TO IMAGE BUFFER
-
+    # CONVERT TEXTURE FILES TO IMAGE, SAMPLER, TEXTURES
+    img_smp_list, img_src_list, img_tex_list = makeImgFromImgList(model["textures"])
 
     ### MAKE GLTF FILE ###
-    # EMBEDDED IMG FILES
 
     #### EMBEDDED GEO FILE ####
     base_uri = 'data:application/octet-stream;base64,'
@@ -277,25 +312,27 @@ for model in master_list:
     ind_ac = AC(name="ac_ind", bufferView=1, componentType=5125, count=faces_count, type="SCALAR")
     nor_ac = AC(name="ac_nor", bufferView=2, componentType=5126, min=normals_mins, max=normals_maxs, count=normals_count, type="VEC3", normalized=True)
     uvs_ac = AC(name="ac_uvs", bufferView=3, componentType=5126, min=uvs_mins, max=uvs_maxs, count=uvs_count, type="VEC2")
-    # PRIM -> MESH -> NODE -> SCENE
-    mat_name = 'MI_' + file_name
-    mat_data = {"diffuseFactor" : [1.0,0.0,0.0,1.0], "specularFactor": [ 1.0, 0.766, 0.336 ], "glossinessFactor": 0.1}
-    extension = {"KHR_materials_pbrSpecularGlossiness": mat_data}
-    mat = MAT(name=mat_name, extensions=extension)
-    # PRIM -> MESH -> NODE -> SCENE
-    prim = PM(attributes=ATTB(0,2,TEXCOORD_0=3), indices = 1, material=0) #<-- ADD NORMALS. UVS, BONES - ACs here!
 
-    mesh = MS(primitives=[prim])
+    # MATERIALS
+    mat = MAT(name='M_Base')
+    # PRIM -> MESH -> NODE -> SCENE
+    prim = PM(attributes=ATTB(0,2,TEXCOORD_0=3), indices = 1, material= 0) #<-- ADD NORMALS. UVS, BONES - ACs here!
+    mesh = MS(primitives=[prim], name=model['name'])
     node = NO(mesh=0)
     scene = SC(nodes=[0])
 
     #MAKE GLTF STRUCTURE
-    gltf_emb = G2(accessors=[pos_ac, ind_ac, nor_ac, uvs_ac], bufferViews=[pos_bw, ind_bw, nor_bw, uvs_bw], buffers=[buffer_geo], meshes=[mesh], nodes=[node], scenes=[scene], scene=0)
+    gltf_emb = G2(accessors=[pos_ac, ind_ac, nor_ac, uvs_ac], bufferViews=[pos_bw, ind_bw, nor_bw, uvs_bw], buffers=[buffer_geo], materials = [mat], meshes=[mesh], nodes=[node], scenes=[scene], scene=0)
+    #pp.pprint(gltf_emb)
 
     #OUTPUT
-    ext = "_embeded.gltf"
-    out_gltf = abs_path.replace(".drs", ext)
-    gltf_emb.save_json(out_gltf)
-    print('----- OUT GLTF (EMBEDED) -----> ', out_gltf)
+    postfix = ''
+    gltf_emb.convert_buffers(pygltflib.BufferFormat.DATAURI)
+    gltf_emb.save_json(abs_path.replace(".drs", postfix + '.gltf'))
+
+    gltf_emb.convert_buffers(pygltflib.BufferFormat.BINARYBLOB)
+    gltf_emb.save_binary(abs_path.replace(".drs", postfix + '.glb'))
+
+    print('----- OUT GLTF (EMBEDED) -----> ', abs_path.replace(".drs", postfix + '.gltf'), ' & ', abs_path.replace(".drs", postfix + '.glb'))
 
     print('------------------------------------------------------------------')
