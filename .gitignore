@@ -136,3 +136,5 @@ lextab.py
 yacctab.py
 test.py
 summary.txt
+deep_upscale.py
+logfile.txt
