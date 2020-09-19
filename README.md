@@ -9,22 +9,28 @@ This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create
 
 ### How to use
 - Renamve the dev_env.json.example to dev_env.json
-- Edit the Path to the master folder of all DRS (It will search all subfolders for .drs files)
+- Edit the Path to the master folder of all DRS/DDS Files (It will search all subfolders for .drs and .dds files)
 
 ### Dependencies
 - [pfp](https://github.com/d0c-s4vage/pfpu)
 - [pygltflib](https://gitlab.com/dodgyville/pygltflib)
+- [Pillow](https://github.com/python-pillow/Pillow)
 
 ### To-Do
 - [x] DRS Parsing & Reading
 - [X] Convert DRS Geometry (Points, Faces) to GLTF
-- [ ] Add Decal, Damage Model and Model into one GLTF File
-- [x] Convert Normals, UVs, (~TBD: Tangents~ no Tangents in the mesh) to GLTF
-- [ ] Embed Textures, Materials and Gemetry into single GLB File (Binary GLTF) -> Basically Plug-And-Edit
-- [ ] Joints, Animations
+- [x] Convert Normals, UVs to GLTF
+- [ ] ~Add Decal, Damage Model and Model into one GLTF File~ Does not make a whole lot of sense. Might add later at as a QOL-feature later.
+- [x] Redo Search Algorithm. (Take into account: "Model Groups", shared decal textures in different location)
+- [x] Embed Textures, Materials and Gemetry into single GLTF / GLB
+- [ ] Joints, Animations (from SKA)
+- [ ] Make user friendly
+- [ ] Optional: Convert Traditonal Textures to PBR
+- [ ] Optional: Upscale Textures using AI/deep learning
 
 ### Credit
 - CrazyCockerell (QuickBMS Script for mass-exporting of Battle Forges PAK-Files!)
 - bobfrog (pfp-DRS-Template & awseome prework!)
 - solcrow (Help + Awesome Unity Viewer and Exporter - Shown that its possible + Animation pfp-SKA-parse templates)
+- Kubik & LPeter1997 for their help!
 - [Skylords Reborn Team](https://forum.skylords.eu/) (In general for keeping the Game alive!)
