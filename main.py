@@ -173,12 +173,10 @@ def makeImgFromImgList(img_list):
         b64_data_string = b64_data.decode()
         datauri_text = 'data:image/png;base64,' + b64_data_string
         #print(datauri_text[:1000])
-        img_src_list.append(IMG(uri=datauri_text, name=tex_type))
-        img_tex_list.append(pygltflib.Texture(name=tex_type, source=i, sampler=0))
-
+        img_src_list.append(IMG(uri=datauri_text, name=tex_type+'_img'))
+        img_tex_list.append(pygltflib.Texture(name=tex_type+'_img', source=i, sampler=0))
+    # ADD SAMPLER
     img_smp_list.append(pygltflib.Sampler())
-
-    #print(img_smp_list, img_tex_list)
     return img_smp_list, img_src_list, img_tex_list
 
 
@@ -234,8 +232,10 @@ def parseDRStoLists(abs_file_path, abs_bt_path):
                         uxy = struct.unpack('ff', vertex.vertexTexture._pfp__build())
                         list_VEC2_uvs.append(uxy)
 
-            # GET BONES FROM NODE
-            # GET WEIGHTS FROM NODE
+        # GET JOINTS FROM NODE 'CSkSkeleton'
+
+        # GET VERTEX WEIGHTS FROM NODE
+
     ## NODES LOOP END ##########################################################
 
     # Debug File Structure
@@ -291,9 +291,6 @@ for model in master_list:
     data_bytearray = position_bytearray + faces_bytearray + normals_bytearray + uvs_bytearray
     print('--- DATA ---\nByteLen: ', len(data_bytearray))
 
-    # CONVERT TEXTURE FILES TO IMAGE, SAMPLER, TEXTURES
-    img_smp_list, img_src_list, img_tex_list = makeImgFromImgList(model["textures"])
-
     ### MAKE GLTF FILE ###
 
     #### EMBEDDED GEO FILE ####
@@ -310,11 +307,15 @@ for model in master_list:
     # Accessors
     pos_ac = AC(name="ac_pos", bufferView=0, componentType=5126, min=position_mins, max=position_maxs, count=position_count, type="VEC3")
     ind_ac = AC(name="ac_ind", bufferView=1, componentType=5125, count=faces_count, type="SCALAR")
-    nor_ac = AC(name="ac_nor", bufferView=2, componentType=5126, min=normals_mins, max=normals_maxs, count=normals_count, type="VEC3", normalized=True)
+    nor_ac = AC(name="ac_nor", bufferView=2, componentType=5126, min=normals_mins, max=normals_maxs, count=normals_count, type="VEC3")
     uvs_ac = AC(name="ac_uvs", bufferView=3, componentType=5126, min=uvs_mins, max=uvs_maxs, count=uvs_count, type="VEC2")
 
-    # MATERIALS
-    mat = MAT(name='M_Base')
+    # CONVERT TEXTURE FILES TO IMAGE, SAMPLER, TEXTURES
+    img_smp_list, img_src_list, img_tex_list = makeImgFromImgList(model["textures"])
+
+    # MATERIALS -> Currently only Color is embeded, since BF-Specular-Shading model is not supported by GLTF but thats a QOL-Feature
+    mat_pbr_def =  { "baseColorTexture" : {"index" : 0}, "metallicFactor" : 0.0, "roughnessFactor" : 1.0 }
+    mat = MAT(name='M_Base', alphaMode="MASK", pbrMetallicRoughness=mat_pbr_def)
     # PRIM -> MESH -> NODE -> SCENE
     prim = PM(attributes=ATTB(0,2,TEXCOORD_0=3), indices = 1, material= 0) #<-- ADD NORMALS. UVS, BONES - ACs here!
     mesh = MS(primitives=[prim], name=model['name'])
@@ -322,14 +323,13 @@ for model in master_list:
     scene = SC(nodes=[0])
 
     #MAKE GLTF STRUCTURE
-    gltf_emb = G2(accessors=[pos_ac, ind_ac, nor_ac, uvs_ac], bufferViews=[pos_bw, ind_bw, nor_bw, uvs_bw], buffers=[buffer_geo], materials = [mat], meshes=[mesh], nodes=[node], scenes=[scene], scene=0)
-    #pp.pprint(gltf_emb)
+    gltf_emb = G2(accessors=[pos_ac, ind_ac, nor_ac, uvs_ac], bufferViews=[pos_bw, ind_bw, nor_bw, uvs_bw], buffers=[buffer_geo], images=img_src_list, materials = [mat], meshes=[mesh], nodes=[node], samplers=img_smp_list, scenes=[scene], scene=0, textures=img_tex_list)
 
-    #OUTPUT
+    #OUTPUT GLTF
     postfix = ''
     gltf_emb.convert_buffers(pygltflib.BufferFormat.DATAURI)
     gltf_emb.save_json(abs_path.replace(".drs", postfix + '.gltf'))
-
+    # OUTPUT GLB
     gltf_emb.convert_buffers(pygltflib.BufferFormat.BINARYBLOB)
     gltf_emb.save_binary(abs_path.replace(".drs", postfix + '.glb'))
 

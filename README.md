@@ -20,10 +20,12 @@ This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create
 - [x] DRS Parsing & Reading
 - [X] Convert DRS Geometry (Points, Faces) to GLTF
 - [x] Convert Normals, UVs to GLTF
-- [ ] ~Add Decal, Damage Model and Model into one GLTF File~ does not make a whole lot of sense. might at as a QOL-feature later.
+- [ ] ~Add Decal, Damage Model and Model into one GLTF File~ Does not make a whole lot of sense. Might add later at as a QOL-feature later.
 - [x] Redo Search Algorithm. (Take into account: "Model Groups", shared decal textures in different location)
-- [ ] Embed Textures, Materials and Gemetry into single GLTF
+- [ ] Embed Textures, Materials and Gemetry into single GLTF / GLB
 - [ ] Joints, Animations (from SKA)
+- [ ] Optional: Convert Traditonal Textures to PBR
+- [ ] Optional: Upscale Textures using AI/Deeplearning
 
 ### Credit
 - CrazyCockerell (QuickBMS Script for mass-exporting of Battle Forges PAK-Files!)
