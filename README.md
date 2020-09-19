@@ -26,7 +26,7 @@ This is a simple mass-converter for Battle Forges .DRS Models. Goal is to create
 - [ ] Joints, Animations (from SKA)
 - [ ] Make user friendly
 - [ ] Optional: Convert Traditonal Textures to PBR
-- [ ] Optional: Upscale Textures using AI/Deeplearning
+- [ ] Optional: Upscale Textures using AI/deep learning
 
 ### Credit
 - CrazyCockerell (QuickBMS Script for mass-exporting of Battle Forges PAK-Files!)
