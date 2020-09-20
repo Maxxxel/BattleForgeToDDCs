@@ -12,8 +12,7 @@ import struct
 import base64
 import operator
 import pygltflib
-from pygltflib import GLTF2 as G2, Scene as SC, Accessor as AC, Buffer as BU, BufferView as BV, BufferFormat as BF, Asset as AS, Mesh as MS, Node as NO, Primitive as PM, Attributes as ATTB, Material as MAT, Image as IMG
-from pygltflib.validator import validate, summary
+from pygltflib import GLTF2 as G2, Scene as SC, Accessor as AC, Buffer as BU, BufferView as BV, BufferFormat as BF, Asset as AS, Mesh as MS, Node as NO, Primitive as PM, Attributes as ATTB, Material as MAT, Image as IMG, Skin as SK
 
 from gltflib import (GLTF, GLTFModel, Asset, Scene, Node, Mesh, Primitive, Attributes, Buffer, BufferView, Accessor, AccessorType, BufferTarget, ComponentType, GLBResource, FileResource)
 # DDS TO PNG
@@ -199,7 +198,7 @@ def parseDRStoLists(abs_file_path, abs_bt_path):
 
         # ATTRIBUTE NODE // POSITIONS - NORMALS - UVS - BBOX - MATERIALS
         if node_name == 'CDspMeshFile':
-            print('CDspMeshFile!')
+            print("--- CDspMeshFile ---")
             #LOOP OVER SUBMESHES
             for submesh in node.MeshFile.meshes:
                 # CHECK IF GOOD NODE
@@ -233,8 +232,79 @@ def parseDRStoLists(abs_file_path, abs_bt_path):
                         list_VEC2_uvs.append(uxy)
 
         # GET JOINTS FROM NODE 'CSkSkeleton'
+        if node_name == "CDspJointMap":
+            print("--- Joint Groups ---")
+            if struct.unpack('i', node.JointMap.JointGroupCount._pfp__build())[0] != 0:
+                joint_groups = []
+                for jointGroup in node.JointMap.JointGroups:
+                    jointCount = struct.unpack("i", jointGroup.JointCount._pfp__build())[0]
+                    jointIndices = struct.unpack("h"*jointCount, jointGroup.JointIndices._pfp__build())
+                    jointIndices = list(jointIndices)
+                    joint_groups.append(jointIndices)
 
-        # GET VERTEX WEIGHTS FROM NODE
+                #print("JOINT GROUPS: ", joint_groups)
+
+        # GET VERTEX WEIGHTS FROM NODE 'CSkSkinInfo'
+        if node_name == "CSkSkinInfo":
+            print("--- SKIN WEIGHTS ---")
+            vertexSkinData = []
+            # MIGHT LOOP OVER Length to assign vertex numbers but general list should be fine...
+            for vertexData in node.SkinInfo.VertexWeights:
+                vertexWeights = list(struct.unpack("ffff", vertexData.Weights._pfp__build()))
+                vertexBoneIndicies = list(struct.unpack("iiii", vertexData.BoneIndices._pfp__build()))
+                vertexSkinData.append([vertexBoneIndicies, vertexWeights])
+
+                #print("BONE INDICES: ", vertexBoneIndicies, "\t| WEIGHTS: ", vertexWeights)
+
+        # GET BONES FROM NODE 'CSkSkeleton'
+        if node_name == "CSkSkeleton":
+            print("--- SKELETON ---")
+            boneMatrices = []
+            boneMeta = []
+            if struct.unpack('i', node.Skeleton.BoneMatrixCount._pfp__build())[0] != 0:
+                print('--- Bone Matrix ---')
+                for boneMatrix in node.Skeleton.BoneMatrices:
+                    boneMatrixData = []
+                    for boneVertices in boneMatrix.BoneVertices:
+                        data_tuple = struct.unpack("fffi", boneVertices._pfp__build())
+                        parent = data_tuple[3]
+                        xyz = list(data_tuple[:3])
+                        boneMatrixData.append([parent, xyz])
+
+                        # PRINT
+                        #print("PARENT: ", parent, "\t| POSITION: ", xyz)
+
+                    boneMatrices.append(boneMatrixData)
+
+            if struct.unpack('i', node.Skeleton.BoneCount._pfp__build())[0] != 0:
+                print('--- Bone Meta ---')
+                for bone in node.Skeleton.Bones:
+                    boneName = unpack_string(bone.Name.Text._pfp__build())
+                    boneId = struct.unpack("i", bone.Identifier._pfp__build())[0]
+                    boneChildCount = struct.unpack("i", bone.ChildCount._pfp__build())[0]
+                    if boneChildCount != 0:
+                        boneChildren = struct.unpack("i"*boneChildCount, bone.Children._pfp__build())
+                        boneChildren = list(boneChildren)
+                    else:
+                        boneChildren = None
+
+                    #print(boneName, "\t| ID: ", boneId, "\t| CHILDREN: ", boneChildCount, "\t| LIST OF CHILDREN: ", boneChildren)
+                    boneMeta.append([boneName, boneId, boneChildren])
+
+            print('----')
+            print(len(boneMatrices))
+            print(len(boneMeta))
+
+
+            if len(boneMatrices) > 0 and len(boneMeta) > 0 and len(boneMatrices) == len(boneMeta):
+                # COMBINE LISTS
+                list_DATA_bones = []
+                print('--- COMBINE LISTS (TODO) ---')
+                for i in range(len(boneMeta)):
+                    list_DATA_bones.append({"bone_id": boneMeta[i][1], "bone_name": boneMeta[i][0], "bone_children": boneMeta[i][2]})
+                list_DATA_bones = sorted(list_DATA_bones, key = lambda x: x['bone_id'])
+
+
 
     ## NODES LOOP END ##########################################################
 
@@ -245,7 +315,50 @@ def parseDRStoLists(abs_file_path, abs_bt_path):
         f.write(dom._pfp__show(include_offset=True))
         f.close()
 
-    return list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs
+    # RETURN STUFF
+    try:
+        return list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs, list_DATA_bones
+    except:
+        return list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs, None
+
+
+def makeNodes(bone_list):
+    nodes_list = []
+    min_bone, max_bone = None, None
+    joint_ids_list = []
+    if bone_list != None:
+        skl_assset = True
+    else:
+        skl_assset = False
+
+    # ROOT NODE [0]
+    if skl_assset:
+        # INDEX 1
+        geo_node = NO(mesh=0, skin=0, name="Proxy")
+        nodes_list.append(geo_node)
+        # INDEX 2 - IF SKELETAL MESH ROOT NODE
+        rig_node = NO(name="Rig", children=[2])
+        nodes_list.append(rig_node)
+        min_bone = len(nodes_list)
+        # DEFINE MIN BONE
+        # ADD BONES
+        for i in range(len(bone_list)):
+            bone = bone_list[i]
+            # ADD PONE OFFSET
+            if bone["bone_children"] != None:
+                children = [child_id + min_bone for child_id in bone["bone_children"]]
+            else:
+                children = None
+            # APPEND NODE
+            nodes_list.append(NO(name=bone["bone_name"], translation = [1.0,1.0,1.0], children=children))
+            joint_ids_list.append(i + min_bone)
+
+    else:
+        # INDEX 0
+        geo_node = NO(mesh=0, name="Proxy")
+        nodes_list.append(geo_node)
+
+    return nodes_list, skl_assset, joint_ids_list
 
 ### DEFINE LOCATION VARS VARIABLES ###
 with open("dev_env.json", 'r') as f:
@@ -267,32 +380,34 @@ for model in master_list:
         convertDDStoPNG(os.path.abspath(img['path']).replace('\\meshes', ''))
         # CONVERT TO PBR
 
-    #PARSE FILE TO LISTS
-    list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs = parseDRStoLists(abs_path, abs_bt)
 
+    print("--- PARSING ---")
+    #PARSE FILE TO LISTS
+    list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs, list_DATA_bones = parseDRStoLists(abs_path, abs_bt)
+
+    print("--- CONVERT TO BINARY ---")
     # MAKE BINARY ARRAYS:
     # POSITIONS
     position_bytearray, position_bytelen, position_mins, position_maxs, position_count = makeByteArrayFromList(list_VEC3_positions, 'VEC', 'f')
-    print('--- POSITIONS ---\nByteLen: ', position_bytelen,'\n Min: ', position_mins,'\n Max: ', position_maxs,'\n Count: ', position_count)
+    print('--- POSITIONS ---\n-- ByteLen: ', position_bytelen,'\n-- Min: ', position_mins,'\n-- Max: ', position_maxs,'\n-- Count: ', position_count)
 
     # FACES / POINT IDs
     faces_bytearray, faces_bytelen, faces_mins, faces_maxs, faces_count =  makeByteArrayFromList(list_SCALAR_faceIndices, "SCALAR", "i")
-    print('--- INDICES ---\nByteLen: ', faces_bytelen,'\n Min: ', faces_mins,'\n Max: ', faces_maxs,'\n Count: ', faces_count)
+    print('--- INDICES ---\n-- ByteLen: ', faces_bytelen,'\n-- Min: ', faces_mins,'\n-- Max: ', faces_maxs,'\n-- Count: ', faces_count)
 
     # Normals
     normals_bytearray, normals_bytelen, normals_mins, normals_maxs, normals_count = makeByteArrayFromList(list_VEC3_normals, 'VEC', 'f')
-    print('--- NORMALS ---\nByteLen: ', normals_bytelen,'\n Min: ', normals_mins,'\n Max: ', normals_maxs,'\n Count: ', normals_count)
+    print('--- NORMALS ---\n-- ByteLen: ', normals_bytelen,'\n-- Min: ', normals_mins,'\n-- Max: ', normals_maxs,'\n-- Count: ', normals_count)
 
     # UVs
     uvs_bytearray, uvs_bytelen, uvs_mins, uvs_maxs, uvs_count = makeByteArrayFromList(list_VEC2_uvs, 'VEC', 'f')
-    print('--- UVs ---\nByteLen: ', uvs_bytelen,'\n Min: ', uvs_mins,'\n Max: ', uvs_maxs,'\n Count: ', uvs_count)
+    print('--- UVs ---\n--ByteLen: ', uvs_bytelen,'\n--Min: ', uvs_mins,'\n--Max: ', uvs_maxs,'\n--Count: ', uvs_count)
 
     #TOTAL GEO DATA:
     data_bytearray = position_bytearray + faces_bytearray + normals_bytearray + uvs_bytearray
-    print('--- DATA ---\nByteLen: ', len(data_bytearray))
+    print('--- DATA ---\n-- ByteLen: ', len(data_bytearray))
 
     ### MAKE GLTF FILE ###
-
     #### EMBEDDED GEO FILE ####
     base_uri = 'data:application/octet-stream;base64,'
     datauri_geo = base_uri + base64.encodebytes(data_bytearray).decode()
@@ -319,11 +434,21 @@ for model in master_list:
     # PRIM -> MESH -> NODE -> SCENE
     prim = PM(attributes=ATTB(0,2,TEXCOORD_0=3), indices = 1, material= 0) #<-- ADD NORMALS. UVS, BONES - ACs here!
     mesh = MS(primitives=[prim], name=model['name'])
-    node = NO(mesh=0)
-    scene = SC(nodes=[0])
 
-    #MAKE GLTF STRUCTURE
-    gltf_emb = G2(accessors=[pos_ac, ind_ac, nor_ac, uvs_ac], bufferViews=[pos_bw, ind_bw, nor_bw, uvs_bw], buffers=[buffer_geo], images=img_src_list, materials = [mat], meshes=[mesh], nodes=[node], samplers=img_smp_list, scenes=[scene], scene=0, textures=img_tex_list)
+    # NODES (MESH, JOINTS, SKIN, etc)
+    nodes_list, skl_assset, joint_ids_list = makeNodes(list_DATA_bones)
+
+    if skl_assset:
+        print(joint_ids_list)
+        skin = SK(joints=joint_ids_list, skeleton=1, name="skeleton")
+    else:
+        skin = None
+
+    # SCENE
+    scene = SC(nodes=[0,1])
+
+    # MAKE GLTF STRUCTURE
+    gltf_emb = G2(accessors=[pos_ac, ind_ac, nor_ac, uvs_ac], bufferViews=[pos_bw, ind_bw, nor_bw, uvs_bw], buffers=[buffer_geo], images=img_src_list, materials = [mat], meshes=[mesh], nodes=nodes_list, samplers=img_smp_list, scenes=[scene], scene=0, skins=[skin], textures=img_tex_list)
 
     #OUTPUT GLTF
     postfix = ''
@@ -336,3 +461,4 @@ for model in master_list:
     print('----- OUT GLTF (EMBEDED) -----> ', abs_path.replace(".drs", postfix + '.gltf'), ' & ', abs_path.replace(".drs", postfix + '.glb'))
 
     print('------------------------------------------------------------------')
+    #break
