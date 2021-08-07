@@ -5,6 +5,7 @@ import json
 import ctypes
 import re
 import fnmatch
+import pandas
 # PARSE
 import pfp
 import struct
@@ -303,7 +304,38 @@ def parseDRStoLists(abs_file_path, abs_bt_path):
                 for i in range(len(boneMeta)):
                     list_DATA_bones.append({"bone_id": boneMeta[i][1], "bone_name": boneMeta[i][0], "bone_children": boneMeta[i][2]})
                 list_DATA_bones = sorted(list_DATA_bones, key = lambda x: x['bone_id'])
+ 
+        if node_name == "CGeoMesh":
+            
 
+            indiciesGeoMesh = []
+            pointsGeoMesh = []
+            normalsGeoMesh = []
+            uvsGeoMesh = []
+
+            # CHECK IF GOOD NODE
+            for face in node.Mesh.Faces:
+                indices = struct.unpack('hhh', face._pfp__build())
+                for index in list(indices):
+                    indiciesGeoMesh.append(index)
+                # LOOP OVER VERTEX STRUCTURE
+            for vertex in node.Mesh.Vertices:
+                # GET POS
+                xyzw = struct.unpack('ffff', vertex._pfp__build())
+                pointsGeoMesh.append(list(xyzw)[0:3])
+                # GET NORMALS
+                #nxyz = struct.unpack('fff', vertex.vertexNormal._pfp__build())
+                #normalsGeoMesh.append(nxyz)
+                # GET UVs
+                #uxy = struct.unpack('ff', vertex.vertexTexture._pfp__build())
+                #uvsGeoMesh.append(uxy)
+        
+            print(indiciesGeoMesh, pointsGeoMesh)
+            # Points to csv
+            df = pandas.DataFrame(pointsGeoMesh)
+            df.to_csv(abs_file_path.replace(".drs", ".csv"))
+
+                
 
 
     ## NODES LOOP END ##########################################################
@@ -317,9 +349,9 @@ def parseDRStoLists(abs_file_path, abs_bt_path):
 
     # RETURN STUFF
     try:
-        return list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs, list_DATA_bones
+        return list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs, list_DATA_bones, indiciesGeoMesh, pointsGeoMesh
     except:
-        return list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs, None
+        return list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs, None, None, None
 
 
 def makeNodes(bone_list):
@@ -375,15 +407,17 @@ for model in master_list:
 
     print('NAME: ', file_name, '\nUSING DRS:', abs_path, '\nUSING BT: ', abs_bt, '\nIMGs:')
     #CONVERT IMAGES TO PNG
-    for img in model["textures"]:
-        print(img['path'])
-        convertDDStoPNG(os.path.abspath(img['path']).replace('\\meshes', ''))
-        # CONVERT TO PBR
-
+    try:
+        for img in model["textures"]:
+            print(img['path'])
+            convertDDStoPNG(os.path.abspath(img['path']).replace('\\meshes', ''))
+            # CONVERT TO PBR
+    except Exception as e:
+        print("Not found any textures")
 
     print("--- PARSING ---")
     #PARSE FILE TO LISTS
-    list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs, list_DATA_bones = parseDRStoLists(abs_path, abs_bt)
+    list_VEC3_positions, list_SCALAR_faceIndices, list_VEC3_normals, list_VEC2_uvs, list_DATA_bones, geomesh_indicies, geomesh_positions = parseDRStoLists(abs_path, abs_bt)
 
     print("--- CONVERT TO BINARY ---")
     # MAKE BINARY ARRAYS:
@@ -403,8 +437,17 @@ for model in master_list:
     uvs_bytearray, uvs_bytelen, uvs_mins, uvs_maxs, uvs_count = makeByteArrayFromList(list_VEC2_uvs, 'VEC', 'f')
     print('--- UVs ---\n--ByteLen: ', uvs_bytelen,'\n--Min: ', uvs_mins,'\n--Max: ', uvs_maxs,'\n--Count: ', uvs_count)
 
+    # GEODATA
+    # Positions
+    #GeoMesh_pos, GeoMesh_pos_bytelen, GeoMesh_pos_mins, GeoMesh_pos_maxs, GeoMesh_pos_count = makeByteArrayFromList(geomesh_positions, 'VEC', 'f')
+    #print('--- GM_POS ---\n--ByteLen: ', GeoMesh_pos_bytelen,'\n--Min: ', GeoMesh_pos_mins,'\n--Max: ', GeoMesh_pos_maxs,'\n--Count: ', GeoMesh_pos_count)
+    # indiecies
+    #GeoMesh_index, GeoMesh_index_bytelen, GeoMesh_index_mins, GeoMesh_index_maxs, GeoMesh_index_count = makeByteArrayFromList(geomesh_indicies, 'SCALAR', 'i')
+    #print('--- GM_IND ---\n--ByteLen: ', GeoMesh_index_bytelen,'\n--Min: ', GeoMesh_index_mins,'\n--Max: ', GeoMesh_index_maxs,'\n--Count: ', GeoMesh_index_count)
+    
     #TOTAL GEO DATA:
-    data_bytearray = position_bytearray + faces_bytearray + normals_bytearray + uvs_bytearray
+    data_bytearray = position_bytearray + faces_bytearray + normals_bytearray + uvs_bytearray #+ GeoMesh_pos + GeoMesh_index
+
     print('--- DATA ---\n-- ByteLen: ', len(data_bytearray))
 
     ### MAKE GLTF FILE ###
@@ -419,20 +462,32 @@ for model in master_list:
     ind_bw = BV(name='ind', buffer=0, byteOffset=position_bytelen, byteLength=faces_bytelen)
     nor_bw = BV(name='nor', buffer=0, byteOffset=position_bytelen+faces_bytelen, byteLength=normals_bytelen)
     uvs_bw = BV(name='uvs', buffer=0, byteOffset=(position_bytelen+faces_bytelen+normals_bytelen), byteLength=uvs_bytelen)
+    
+    #gm_pos_bw = BV(name='gmpos', buffer=0, byteOffset=(position_bytelen+faces_bytelen+normals_bytelen+uvs_bytelen), byteLength=GeoMesh_pos_bytelen)
+    #gm_ind_bw = BV(name='gmind', buffer=0, byteOffset=(position_bytelen+faces_bytelen+normals_bytelen+uvs_bytelen+GeoMesh_pos_bytelen), byteLength=GeoMesh_index_bytelen)
+
     # Accessors
     pos_ac = AC(name="ac_pos", bufferView=0, componentType=5126, min=position_mins, max=position_maxs, count=position_count, type="VEC3")
     ind_ac = AC(name="ac_ind", bufferView=1, componentType=5125, count=faces_count, type="SCALAR")
     nor_ac = AC(name="ac_nor", bufferView=2, componentType=5126, min=normals_mins, max=normals_maxs, count=normals_count, type="VEC3")
     uvs_ac = AC(name="ac_uvs", bufferView=3, componentType=5126, min=uvs_mins, max=uvs_maxs, count=uvs_count, type="VEC2")
 
-    # CONVERT TEXTURE FILES TO IMAGE, SAMPLER, TEXTURES
-    img_smp_list, img_src_list, img_tex_list = makeImgFromImgList(model["textures"])
+    #gm_pos_ac = AC(name="ac_gm_pos", bufferView=4, componentType=5126, min=GeoMesh_pos_mins, max=GeoMesh_pos_maxs, count=GeoMesh_pos_count, type="VEC3")
+    #gm_ind_ac = AC(name="ac_gm_ind", bufferView=5, componentType=5125, count=GeoMesh_index_count, type="SCALAR")
 
+    # CONVERT TEXTURE FILES TO IMAGE, SAMPLER, TEXTURES
+    try:
+        img_smp_list, img_src_list, img_tex_list = makeImgFromImgList(model["textures"])
+    except Exception as e:
+        print("No Textures")
+        
     # MATERIALS -> Currently only Color is embeded, since BF-Specular-Shading model is not supported by GLTF but thats a QOL-Feature
     mat_pbr_def =  { "baseColorTexture" : {"index" : 0}, "metallicFactor" : 0.0, "roughnessFactor" : 1.0 }
     mat = MAT(name='M_Base', alphaMode="MASK", pbrMetallicRoughness=mat_pbr_def)
     # PRIM -> MESH -> NODE -> SCENE
     prim = PM(attributes=ATTB(0,2,TEXCOORD_0=3), indices = 1, material= 0) #<-- ADD NORMALS. UVS, BONES - ACs here!
+    #prim2 = PM(attributes=ATTB(POSITION=4), indices=5)
+    
     mesh = MS(primitives=[prim], name=model['name'])
 
     # NODES (MESH, JOINTS, SKIN, etc)
@@ -461,4 +516,4 @@ for model in master_list:
     print('----- OUT GLTF (EMBEDED) -----> ', abs_path.replace(".drs", postfix + '.gltf'), ' & ', abs_path.replace(".drs", postfix + '.glb'))
 
     print('------------------------------------------------------------------')
-    #break
+    break
