@@ -5,14 +5,14 @@ struct CString
     char Text[Length];
 };
 
-struct Point
+struct Vector3
 {
     float X;
     float Y;
     float Z;
 };
 
-struct Point4D
+struct Vector4
 {
     float X;
     float Y;
@@ -20,44 +20,49 @@ struct Point4D
     float W;
 };
 
-struct Point2D
+struct Vector2
 {
     float X;
     float Y;
 };
 
-struct Face
+struct Triangle
 {
     short Indices[3];
+};
+
+struct Matrix
+{
+    Vector4 P[4];
 };
 
 
 struct CGeoMesh //seems to rebuild the MeshFile, but with fewer vertices (meshfile seems to have each triangle twice anyway)
 {
-    int magic;
-    int IndexCount;
+    int magic <fgcolor=cGreen>;
+    int IndexCount <fgcolor=cGreen>;
 
     if (IndexCount > 0)
-        Face Faces[IndexCount/3];
+        Triangle Triangles[IndexCount/3] <fgcolor=cGreen>;
 
-    int VertexCount;
+    int VertexCount <fgcolor=cGreen>;
 
     if (VertexCount > 0)
     {
-        Point4D Vertices[VertexCount];
+        Vector4 Vertices[VertexCount] <fgcolor=cGreen>;
     }
 };
 
 struct CSkSkinInfo
 {
-    int Version;
-    int VertexCount;
+    int Version <fgcolor=cGreen>;
+    int VertexCount <fgcolor=cGreen>;
 
     struct _VertexWeight
     {
         float Weights[4];
         int BoneIndices[4];
-    } VertexWeights[VertexCount];
+    } VertexWeights[VertexCount] <fgcolor=cGreen>;
 };
 
 struct CDspMeshFile
@@ -65,101 +70,152 @@ struct CDspMeshFile
     int magic;
     local int unknown = -1;
     local int MeshCount = 0;
+
     if(magic==1314189598){
         int tmp <hidden=true>;
         unknown = tmp;
         int tmp2 <hidden=true>;
         MeshCount = tmp2;
-
     } else {
         MeshCount = magic;
     }
 
-    Point BoundingBoxLowerLeftCorner1;
-    Point BoundingBoxUpperRightCorner1;
+    Vector3 BoundingBoxLowerLeftCorner1 <fgcolor=cGreen>;
+    Vector3 BoundingBoxUpperRightCorner1 <fgcolor=cGreen>;
 
     struct sthMesh{
 
-        int VertexCount;
-        int FaceCount;
+        int VertexCount <fgcolor=cGreen>;
+        int TriangleCount <fgcolor=cGreen>;
 
-        Face Faces[FaceCount];
+        Triangle Triangles[TriangleCount] <fgcolor=cGreen>;
 
 
-        byte MeshCount;
+        byte MeshCount <fgcolor=cGreen>;
 
 
         struct _Mesh
         {
-            int FVF;
-            int VertexSize;
+            int Revision <fgcolor=cGreen>;
+            int VertexSize <fgcolor=cGreen>;
 
-            if(FVF == 133121){
+            if(Revision == 133121){
                 struct _Vertex{
-                    Point vertex;
-                    Point vertexNormal;
-                    Point2D vertexTexture;
-                } Vertex[VertexCount];
-            } else if(FVF==12288){
-                struct FVF30{
-                    float uk[6];
-                } fvf30[VertexCount];
-
-
+                    Vector3 vertex;
+                    Vector3 vertexNormal;
+                    Vector2 vertexTexture;
+                } Vertex[VertexCount] <fgcolor=cGreen>;
+            } else if(Revision==12288){
+                struct UkVertex{
+                    Vector3 uk;
+                    Vector3 uk;
+                } ukVertex[VertexCount] <fgcolor=cRed>;
+            } else if(Revision==12){
+                struct UkVertex2{
+                    Vector2 uk;
+                } ukVertex2[VertexCount] <fgcolor=cRed>;
             } else {
-                Printf( "unknown FVF: 0x%X \n", FVF); // CDspStaticMesh::LoadVertices for further analysis
-                float VertexData[VertexCount * VertexSize/4] <fgcolor=cRed>;
+                Printf( "unknown Revision: 0x%X \n", Revision); // CDspStaticMesh::LoadVertices for further analysis
+
+                struct UkVertex3{
+                    Vector2 uk;
+                } ukVertex3[VertexCount] <fgcolor=cRed>;
             }
 
          } Meshes[MeshCount] <optimize=false>;
 
 
-        Point BoundingBoxLowerLeftCorner2; //seems like same BB as before
-        Point BoundingBoxUpperRightCorner2;
+        Vector3 BoundingBoxLowerLeftCorner2 <fgcolor=cGreen>; //seems like same BB as before
+        Vector3 BoundingBoxUpperRightCorner2 <fgcolor=cGreen>;
 
-        short materialID;
-        int materialParameters;
+        short materialID <fgcolor=cGreen>;
+        int materialParameters <fgcolor=cGreen>;
+
         struct TextureParameter {
             int Identifier;
-            CString Name;
+            
+            if (Identifier == 1684432499) {
+                CString ColorMap;
+            } else if (Identifier == 1936745324) {
+                CString ParamMap;
+            } else if (Identifier == 1852992883) {
+                CString NormalMap;
+            } else if (Identifier == 1701738100) {
+                CString EnvironmentMap;
+            } else if (Identifier == 1919116143) {
+                CString RefractionParamMap;
+            } else if (Identifier == 1684628335) {
+                CString DistortionParamMap;
+            } else if (Identifier == 1668510769) {
+                CString ScratchMap;
+            } else if (Identifier == 1668510770) {
+                CString FluidMap;
+            }
+
             int postString;
         };
 
         struct TextureParameters
         {
             int Length;
-            TextureParameter TextureParameters[Length] <optimize=false>;
-        };
-
-        struct ColorParameter {
-            int Identifier;
-            int R;
-            int G;
-            int B;
+            local int i = 0;
+            
+            for (i = 0; i < Length; i++) {
+                TextureParameter textureParameter;
+            };
         };
 
         struct ColorParameters {
-            int Length;
-            ColorParameter colorParameters[Length];
+            int Length; // Always 1
+
+            struct RefractionColor {
+                int Identifier;
+                int R;
+                int G;
+                int B;
+            } refractionColor[Length];
         };
 
         struct ScalarParameter {
             int Identifier;
-            float Value;
+
+            if (Identifier == 1668510769) {
+                float Smoothness;
+            } else if (Identifier == 1668510770) {
+                float Metalness;
+            } else if (Identifier == 1668510771) {
+                float Reflectivity;
+            } else if (Identifier == 1668510772) {
+                float Emissivity;
+            } else if (Identifier == 1668510773) {
+                float RefractionScale;
+            } else if (Identifier == 1668510774) {
+                float DistortionMeshScale;
+            } else if (Identifier == 1935897704) {
+                float Scratch;
+            } else if (Identifier == 1668510775) {
+                float SpecularScale;
+            } else if (Identifier == 1668510776) {
+                float WindResponse;
+            } else if (Identifier == 1668510777) {
+                float WindHeight;
+            } else if (Identifier == 1935893623) {
+                float DepthWriteThreshold;
+            }
         };
 
         struct ScalarParameters {
             int Length;
-            ScalarParameter scalarParameters[Length];
-        };
-
-        struct IntegerParameter {
-            int Value;
+            local int i = 0;
+            
+            for (i = 0; i < Length; i++) {
+                ScalarParameter scalarParameter;
+            };
         };
 
         struct IntegerParameters {
-            int Length;
-            IntegerParameter integerParameters[Length];
+            int Length; // Always 1
+            int LODLevel;
         };
 
         struct StringParameter {
@@ -174,75 +230,88 @@ struct CDspMeshFile
 
         struct VectorParameter {
             int Identifier;
-            Point4D Value;
+
+            if (Identifier == 1668707377) {
+                Vector4 MaxFlowSpeed;
+            } else if (Identifier == 1668707378) {
+                Vector4 MinFlowSpeed;
+            } else if (Identifier == 1668707379) {
+                Vector4 FlowSpeedChange;
+            } else if (Identifier == 1668707380) {
+                Vector4 FlowScale;
+            }
         };
 
         struct VectorParameters {
             int Length;
-            VectorParameter vectorParameters[Length];
+            local int i = 0;
+            
+            for (i = 0; i < Length; i++) {
+                VectorParameter vectorParameter;
+            };
         };
+
         if(materialParameters == -86061050){
 
-            int sthOfMaterialCore;
-            int boolParamTransfer;
+            int sthOfMaterialCore <fgcolor=cRed>;
+            int boolParamTransfer <fgcolor=cRed>;
 
-            TextureParameters textureParameters;
-            ColorParameters colorParameters;
-            ScalarParameters scalarParameters;
-            IntegerParameters integerParameters;
-            StringParameters stringParameters;
-            VectorParameters vectorParameters;
+            TextureParameters textureParameters <fgcolor=cGreen>;
+            ColorParameters colorParameters <fgcolor=cGreen>;
+            ScalarParameters scalarParameters <fgcolor=cGreen>;
+            IntegerParameters integerParameters <fgcolor=cGreen>;
+            StringParameters stringParameters <fgcolor=cGreen>;
+            VectorParameters vectorParameters <fgcolor=cGreen>;
         } else if (materialParameters == -86061051 || materialParameters == -86061052) {
-            int sthOfMaterialCore;
-            int boolParamTransfer; //<- boolParamTransfer = ((unsigned int)boolParamTransfer | 1); for 0xFACED0004
+            int sthOfMaterialCore <fgcolor=cRed>;
+            int boolParamTransfer <fgcolor=cRed>; //<- boolParamTransfer = ((unsigned int)boolParamTransfer | 1); for 0xTriangleD0004
 
-            TextureParameters textureParameters;
-            ColorParameters colorParameters;
-            ScalarParameters scalarParameters;
-            IntegerParameters integerParameters;
-            StringParameters stringParameters;
+            TextureParameters textureParameters <fgcolor=cGreen>;
+            ColorParameters colorParameters <fgcolor=cGreen>;
+            ScalarParameters scalarParameters <fgcolor=cGreen>;
+            IntegerParameters integerParameters <fgcolor=cGreen>;
+            StringParameters stringParameters <fgcolor=cGreen>;
         } else if (materialParameters == -86061053) {
-            int boolParamTransfer;
+            int boolParamTransfer <fgcolor=cRed>;
 
-            TextureParameters textureParameters;
-            ColorParameters colorParameters;
-            ScalarParameters scalarParameters;
-            IntegerParameters integerParameters;
-            StringParameters stringParameters;
+            TextureParameters textureParameters <fgcolor=cGreen>;
+            ColorParameters colorParameters <fgcolor=cGreen>;
+            ScalarParameters scalarParameters <fgcolor=cGreen>;
+            IntegerParameters integerParameters <fgcolor=cGreen>;
+            StringParameters stringParameters <fgcolor=cGreen>;
         } else if (materialParameters == -86061054) {
-            int boolParamTransfer;
+            int boolParamTransfer <fgcolor=cRed>;
 
-            TextureParameters textureParameters;
-            ColorParameters colorParameters;
-            ScalarParameters scalarParameters;
-            IntegerParameters integerParameters;
+            TextureParameters textureParameters <fgcolor=cGreen>;
+            ColorParameters colorParameters <fgcolor=cGreen>;
+            ScalarParameters scalarParameters <fgcolor=cGreen>;
+            IntegerParameters integerParameters <fgcolor=cGreen>;
         } else if (materialParameters == -86061055) {
-            int boolParamTransfer; ////<- boolParamTransfer = ((unsigned int)boolParamTransfer | 1);
+            int boolParamTransfer <fgcolor=cRed>; ////<- boolParamTransfer = ((unsigned int)boolParamTransfer | 1);
 
-            TextureParameters textureParameters;
-            ColorParameters colorParameters;
-            ScalarParameters scalarParameters;
+            TextureParameters textureParameters <fgcolor=cGreen>;
+            ColorParameters colorParameters <fgcolor=cGreen>;
+            ScalarParameters scalarParameters <fgcolor=cGreen>;
         } else {
             Printf( "unknown materialParameter: 0x%X \n", materialParameters); //CDspMaterialCore::ReadParameters for more
-
         }
     } meshes[MeshCount] <optimize=false>;
 
-    //Otherwise, Point0=(0,0,0,1) UPoint=(1,1,0,0) VPoint=(0,0,1,1)
+    //Otherwise, Vector30=(0,0,0,1) UVector3=(1,1,0,0) VVector3=(0,0,1,1)
     if(unknown >= 0){
-        Point4D Point0;
-        Point4D UPoint;
-        Point4D VPoint;
+        Vector4 Vector30 <fgcolor=cRed>;
+        Vector4 UVector3 <fgcolor=cRed>;
+        Vector4 VVector3 <fgcolor=cRed>;
     }
 };
 
 
 struct CSkSkeleton
 {
-    int Version;
-    int Unknown1;
+    int Version <fgcolor=cGreen>;
+    int Unknown1  <fgcolor=cRed>;
 
-    int BoneMatrixCount;
+    int BoneMatrixCount <fgcolor=cGreen>;
     struct BoneMatrix
     {
         struct BoneVertex
@@ -252,28 +321,27 @@ struct CSkSkeleton
             float Z;
             int ParentReference; //parentRef[0] = parent index, parentRef[1] = index into CSkSkeleton.dBone array, used in SKA
         } BoneVertices[4];
-    } BoneMatrices[BoneMatrixCount];
+    } BoneMatrices[BoneMatrixCount] <fgcolor=cGreen>;
 
-    int BoneCount;
+    int BoneCount <fgcolor=cGreen>;
     struct Bone
     {
         int Version;
-
         int Identifier;
         CString Name;
-
         int ChildCount;
+
         if (ChildCount > 0)
             int Children[ChildCount];
-    } Bones[BoneCount] <optimize=false>;
+    } Bones[BoneCount] <fgcolor=cGreen, optimize=false>;
 
-    float Unknown2[16];
+    Vector4 SuperParent[4] <fgcolor=cGreen>;
 };
 
 struct CDspJointMap
 {
-    int Version;
-    int JointGroupCount;
+    int Version <fgcolor=cGreen>;
+    int JointGroupCount <fgcolor=cGreen>;
 
     if (JointGroupCount > 0)
     {
@@ -282,178 +350,175 @@ struct CDspJointMap
             int JointCount;
             if (JointCount > 0)
                 short JointIndices[JointCount];
-        } JointGroups[JointGroupCount] <optimize=false>;
+        } JointGroups[JointGroupCount] <fgcolor=cGreen, optimize=false>;
     }
 };
 
 struct AnimationSet
 {
-    CString Magic;
-	if (Strcmp(Magic.Text, "Battleforge") != 0) Printf("\nerror bad magic AnimSet\n");
-    int Count; //Should be <= 6
+    CString Version <fgcolor=cGreen>;
+	if (Strcmp(Version.Text, "Battleforge") != 0) Printf("\nerror bad magic AnimSet\n");
+    int Count <fgcolor=cGreen>; //Should be <= 6
     if(Count>6) Printf("\nerror count >6\n");
 
-    float Unknown1;
-    float Unknown2;
-    int Version;
+    float DefaultRunSpeed <fgcolor=cGreen>;
+    float DefaultWalkSpeed <fgcolor=cGreen>;
+    int Revision <fgcolor=cGreen>;
 
     if (Count >= 6) //> should not happen -> Count == 6
     {
-        if (Version >= 2)
+        if (Revision >= 2)
         {
-            byte Unknown4;
-            byte Unknown5;
+            byte ModeChangeType <fgcolor=cGreen>;
+            byte HoveringGround <fgcolor=cGreen>;
         }
 
-        if (Version >= 5)
+        if (Revision >= 5)
         {
-            float Unknown6;
-            float Unknown7;
-            float Unknown8;
+            float fly_bank_scale <fgcolor=cGreen>;
+            float fly_accel_scale <fgcolor=cGreen>;
+            float fly_hit_scale <fgcolor=cGreen>;
         }
 
-        if (Version >= 6)
-            byte Unknown9;
+        if (Revision >= 6)
+            byte AlignToTerrain <fgcolor=cGreen>;
     }
 
-    int ModeAnimationKeyCount;
+    int ModeAnimationKeyCount <fgcolor=cGreen>;
 
     struct _ModeAnimationKey
     {
-        int Type;
-        CString Magic2;
-        int Unknown11;
+        int Type <fgcolor=cGreen>;
+        CString Magic2 <fgcolor=cGreen>;
+        int Unknown11 <fgcolor=cRed>;
 
         if (Type == 1)
         {
-            int Unknown12;
-            short Unknown13;
-            int Unknown14;
-            byte Unknown15;
-            int Unknown16;
-            int Unknown17;
-            int Unknown18;
-            byte Unknown19;
+            int Unknown12 <fgcolor=cRed>;
+            short Unknown13 <fgcolor=cRed>;
+            int Unknown14 <fgcolor=cRed>;
+            byte Unknown15 <fgcolor=cRed>;
+            int Unknown16 <fgcolor=cRed>;
+            int Unknown17 <fgcolor=cRed>;
+            int Unknown18 <fgcolor=cRed>;
+            byte Unknown19 <fgcolor=cRed>;
         }
         else if (Type == 2 || Type == 3 || Type == 4 || Type == 5)
         {
-            int Unknown20;
-            short Unknown21;
+            int Unknown20 <fgcolor=cRed>;
+            short Unknown21 <fgcolor=cRed>;
         }
         else if (Type == 6)
         {
-            int Unknown22;
-            short Unknown23;
-            int Unknown24;
-            short Unknown24;
+            int Unknown22 <fgcolor=cRed>;
+            short Unknown23 <fgcolor=cRed>;
+            int Unknown24 <fgcolor=cRed>;
+            short Unknown24 <fgcolor=cRed>;
         } else Printf("\n uk modeAnimType %d\n",Type);
 
-        int UnknownLength;
+        int VariantCount <fgcolor=cGreen>;
 
-        struct _UnknownStructure
+        struct AnimationSetVariant
         {
-            int Unknown25;
-            int Unknown26;
-            CString Unknown27;
+            int Unknown25 <fgcolor=cRed>;
+            int weight <fgcolor=cGreen>;
+            CString VariantName <fgcolor=cGreen>;
 
             if (Unknown25 >= 4)
             {
-                int Unknown28;
-                int Unknown29;
+                float start <fgcolor=cGreen>;
+                float end <fgcolor=cGreen>;
             }
 
             if (Unknown25 >= 5)
             {
-                byte Unknown30;
+                byte allowsIK <fgcolor=cGreen>;
             }
 
             if (Unknown25 >= 7)
             {
-                byte Unknown31;
+                byte Unknown31 <fgcolor=cRed>;
             }
-        } Unknowns[UnknownLength] <optimize=false>;
+        } Variants[VariantCount] <optimize=false>;
     } AnimationKeys[ModeAnimationKeyCount] <optimize=false>;
 
 
     if (Count >= 3)
     {
-        short Unknown32;
+        short HasAtlas <fgcolor=cGreen>;
 
-        if (Unknown32 >= 1)
+        if (HasAtlas >= 1)
         {
-            int len;
+            int AtlasCount <fgcolor=cGreen>;
 
-            struct UnknownStruct123{
-                int uk123;
+            struct IKAtlas{
+                int identifier;
+                short version;
 
-                short uk124;
-                if(uk124>=1){
+                if(version>=1){
 
-                    int uk125;
-                    int uk126;
+                    int axis;
+                    int ChainOrder;
 
-                    struct UKStruct1234{
-                        short uk1234;
-                        if(uk1234==1){
-                            int uk1236[5];
+                    struct Constraint{
+                        short Rev;
+
+                        if (Rev == 1) {
+                            float LeftAngle;
+                            float RightAngle;
+                            float LeftDampStart;
+                            float RightDampStart;
+                            float Dampratio;
                         }
-                    } uk1234[3] <optimize=false>;
-                }
-                if(uk124>=2){
-                    short uk127;
+                    } Constraints[3] <optimize=false>;
                 }
 
-            } unknown123[len] <optimize=false>;
-
-
-
-
+                if(version>=2){
+                    short PurposeFlags;
+                }
+            } IKAtlases[AtlasCount] <fgcolor=cGreen, optimize=false>;
         }
 
-        if (Unknown32 >= 2)
+        if (HasAtlas >= 2)
         {
-            int len1;
+            int len1 <fgcolor=cRed>;
             struct _UnknownStruct2
             {
                 int Unknown36;
                 int Unknown37;
                 int Unknown38;
-            } Unknowns2[len1];
+            } Unknowns2[len1] <fgcolor=cRed>;
         }
     }
 
 
     if (Count >= 4)
     {
-        short Unknown39;
-        if (Unknown39 == 2)
-        {
-            int Unknown40;
+        short revision <fgcolor=cGreen>;
 
-            struct _UnknownStruct3
+        if (revision == 2)
+        {
+            int AnimationMarkerCount <fgcolor=cGreen>;
+
+            struct AnimationMarkerSet
             {
-                int Unknown41;
-                CString Unknown42;
-                int Unknown43;
-                int Unknown44;
+                int animID <fgcolor=cGreen>;
+                CString file <fgcolor=cGreen>;
+                int Unknown43 <fgcolor=cRed>;
+                int MarkerCount <fgcolor=cGreen>;
 
-                struct _UnknownStruct4
+                struct Marker
                 {
-                    int Unknown45;
-                    int Unknown46;
-                    int Unknown47;
-                    int Unknown48;
-
-                    int Unknown49;
-                    int Unknown50;
-                    int Unknown51;
-                    int Unknown52;
-                } Unknowns4[Unknown44];
-            } Unknowns3[Unknown40] <optimize=false>;
+                    int _class;
+                    float time;
+                    Vector3 direction;
+                    Vector3 position;
+                } Markers[MarkerCount] <fgcolor=cGreen>;
+            } animationMarkerSets[AnimationMarkerCount] <optimize=false>;
         }
-        else if (Unknown39 == 1)
+        else if (revision == 1)
         {
-            int Unknown53;
+            int Unknown53 <fgcolor=cRed>;
 
             struct _UnknownStruct5
             {
@@ -470,7 +535,7 @@ struct AnimationSet
                     int Unknown61;
                     int Unknown62;
                 } Unknowns6[Unknown57];
-            } Unknowns5[Unknown53] <optimize=false>;
+            } Unknowns5[Unknown53] <fgcolor=cRed, optimize=false>;
         }
     }
 };
@@ -478,14 +543,14 @@ struct AnimationSet
 
 
 struct AnimationTimings{
-    int magic;
+    int magic <fgcolor=cGreen>;
 
     if(magic==1650881127){
-        short version;
-
+        short version <fgcolor=cGreen>;
 
         struct Time{
-            short len;
+            short len <fgcolor=cGreen>;
+
             struct Sth8{
                 int uk;
                 if(version==4 || version == 2 || version == 3){
@@ -502,7 +567,7 @@ struct AnimationTimings{
                         int uk[6];
                     } sth10[len3]  <optimize=false>;
                 } sth9[len2] <optimize=false>;
-            } sth8[len] <optimize=false>;
+            } sth8[len] <fgcolor=cRed, optimize=false>;
         } time <optimize=false>;
 
 
@@ -512,7 +577,7 @@ struct AnimationTimings{
                 struct Sth7{
                     int uk[2];
                 } sth7[len];
-            } time3 <optimize=false>;
+            } time3 <fgcolor=cRed, optimize=false>;
         }
     } else Printf("\nbad animTimings magic\n");
 
@@ -520,8 +585,8 @@ struct AnimationTimings{
 
 
 struct DrwResourceMeta {
-    int uk[2];
-    CString uk;
+    int uk[2] <fgcolor=cRed>;
+    CString uk <fgcolor=cRed>;
 };
 
 
@@ -533,43 +598,48 @@ struct SthSound{
 };
 
 struct EffectSet{
-    short type;
-    CString checksum;
+    short type <fgcolor=cGreen>;
+    CString checksum <fgcolor=cRed>;
 
     if(type == 10 || type == 11 || type == 12){
-        if(type==10) byte uk[20];
-        int len;
+        if(type==10) byte uk[20] <fgcolor=cRed>;
+
+        int len <fgcolor=cGreen>;
 
         struct skelEff{
-            CString skelFileName;
-            int len1;
+            CString skelFileName <fgcolor=cGreen>;
+            int len1 <fgcolor=cGreen>;
+
             struct WavHolder{
-                int uk2[2];
-                float one;
-                int uk3[7];
-				if(type>=12) byte uk4;
-                byte FF;
-                int len2;
+                float time <fgcolor=cGreen>;
+                int keyframe_type <fgcolor=cGreen>;
+                float minFalloff <fgcolor=cGreen>;
+                float maxFalloff <fgcolor=cGreen>;
+                float volume <fgcolor=cGreen>;
+                float psMin <fgcolor=cGreen>;
+                float psMax <fgcolor=cGreen>;
+                Vector3 offset <fgcolor=cGreen>;
+                byte interruptable <fgcolor=cGreen>;
+                byte uk <fgcolor=cRed>;
+                int len2 <fgcolor=cGreen>;
+
                 struct Wav{
                     byte id;
                     CString wavFileName;
-                } wav[len2] <optimize=false>;
+                } wav[len2] <fgcolor=cGreen, optimize=false>;
             } wavHolder[len1] <optimize=false>;
         } skelEffekts[len] <optimize=false>;
 
-		short len4;
+		short len4 <fgcolor=cRed>;
 		struct Uks3{
             short uk1;
             int uk2[5];
             short uk3;
 			short len6;
 			SthSound sthSound2[len6] <optimize=false>;
-		} uks3[len4] <optimize=false>;
+		} uks3[len4] <fgcolor=cRed, optimize=false>;
 
-
-
-
-		short len3;
+		short len3 <fgcolor=cRed>;
 		struct Uks1{
 			short uk;
 			int uk1[5];
@@ -582,35 +652,29 @@ struct EffectSet{
 				short len5;
 				SthSound sthSound[len5];
 			} uks2[len4] <optimize=false>;
-		} uks1[len3] <optimize=false>;
-
-
-
+		} uks1[len3] <fgcolor=cRed, optimize=false>;
     } else if(type == 7 || type == 8 || type == 9){//needs testing, no file with this type found
 		Printf("\nwarning, untested code");
-        short len6;
+        short len6 <fgcolor=cRed>;
 		struct Uks4{
 			short uk;
 			short len7;
 			SthSound sthSound3[len7];
-		} uks4[len6] <optimize=false>;
+		} uks4[len6] <fgcolor=cRed, optimize=false>;
 
-		short len8;
+		short len8 <fgcolor=cRed>;
 		struct Uks5{
 			short uk1;
 			short len9;
 			SthSound sthSound4[len9];
-		} uks5[len8] <optimize=false>;
-
-
-
+		} uks5[len8] <fgcolor=cRed, optimize=false>;
 	}
-
 };
 
 struct CDrwLocatorList{
     int uk;
     int version;
+
     if(version==4){
 		int len;
 		struct UK2{
@@ -631,44 +695,43 @@ struct CDrwLocatorList{
 };
 
 struct CGeoOBBTree{
-	int magic;
+	int magic <fgcolor=cGreen>;
+
 	if(magic==1845540702){
-		int id;
+		int id <fgcolor=cGreen>;
+
 		if(id==1){
-			byte uk[4096];
+			byte uk[4096] <fgcolor=cRed>;
 		} else if(id==2){
-			byte uk[4096];
-			int len1;
+			byte uk[4096] <fgcolor=cRed>;
+			int len1 <fgcolor=cRed>;
+
 			struct Uks123{
 				int64 uk1;
 				short uk2[3];
 				short uk3;
-			} uks123[len1];
+			} uks123[len1] <fgcolor=cRed>;
 		} else if(id==3){
-			int len2;
-			float asd[len2*64/4];
-			int len3;
-			short uk6[len3*3];
+			int len2 <fgcolor=cGreen>;
+            Matrix Matrices[len2] <fgcolor=cGreen>;
 
-
+			int len3 <fgcolor=cGreen>;
+            Triangle Triangles[len3] <fgcolor=cGreen>;
 		}
-
 	} else Printf("\n invalid obb tree file\n");
-
-
 };
 
 
 local string filter = "*";
 
 //Structure
-int Magic <fgcolor=cBlue>; //0xC57CF11E
+int Magic <fgcolor=cGreen>; //0xC57CF11E
 if(Magic==-981667554){
-	int NumberOfModels <fgcolor=cBlue>; //Must be 1; confirmed everywhere 1
+	int NumberOfModels <fgcolor=cGreen>; //Must be 1; confirmed everywhere 1
 
-	int NodeInformationOffset <fgcolor=cBlue>;
-	int NodeHierarchyOffset <fgcolor=cBlue>;
-	uint NodeCount <fgcolor=cBlue>; //Node count
+	int NodeInformationOffset <fgcolor=cGreen>;
+	int NodeHierarchyOffset <fgcolor=cGreen>;
+	uint NodeCount <fgcolor=cGreen>; //Node count
 
 	if (NodeCount != 0)
 	{
@@ -680,7 +743,7 @@ if(Magic==-981667554){
 			int one;//confirmed
 			int uk2;
 			int zero;//confirmed zero
-		} RootNodeInfo <fgcolor=cBlue>;
+		} RootNodeInfo <fgcolor=cGreen>;
 
 		struct _NodeInformation
 		{
@@ -689,7 +752,7 @@ if(Magic==-981667554){
 			int Offset;
 			int Size;
 			byte uk[16]; // set to 0 didnt break anything
-		} NodeInformation[NodeCount-1] <fgcolor=cBlue>;
+		} NodeInformation[NodeCount-1] <fgcolor=cGreen>;
 
 
 		FSeek(NodeHierarchyOffset);
@@ -699,15 +762,15 @@ if(Magic==-981667554){
 			int RootIdentifier;
 			int Unknown;
 			CString rootName;
-		} RootNode <fgcolor=cBlue>;
+		} RootNode <fgcolor=cGreen>;
 
 		local int i = 1;
 		struct _Node
 		{
 			local int NodeIndex = i;
-			int InfoIndex;
-			CString Name;
-			int Unknown; //ChildCount?
+			int InfoIndex <fgcolor=cGreen>;
+			CString Name <fgcolor=cGreen>;
+			int Unknown <fgcolor=cRed>; //ChildCount?
 
 			local int j;
 			local int64 oldPosition;
@@ -754,7 +817,7 @@ if(Magic==-981667554){
 			}
 
 			i = i + 1;
-		} Nodes[NodeCount-1] <optimize=false, fgcolor=cBlue>;
+		} Nodes[NodeCount-1] <optimize=false>;
 	}
 	//Printf("\n");
 } else Printf("\n unknown drs magic");
