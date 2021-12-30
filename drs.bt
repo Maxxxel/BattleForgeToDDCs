@@ -170,9 +170,9 @@ struct CDspMeshFile
 
             struct RefractionColor {
                 int Identifier;
-                int R;
-                int G;
-                int B;
+                float R;
+                float G;
+                float B;
             } refractionColor[Length];
         };
 
@@ -218,14 +218,10 @@ struct CDspMeshFile
             int LODLevel;
         };
 
-        struct StringParameter {
-            CString Name;
-        };
-
         struct StringParameters
         {
             int Length;
-            StringParameter stringParameters[Length] <optimize=false>;
+            byte uk[Length * 2];
         };
 
         struct VectorParameter {
@@ -721,6 +717,33 @@ struct CGeoOBBTree{
 	} else Printf("\n invalid obb tree file\n");
 };
 
+struct StateBasedMeshSet {
+    short uk1[3];
+    int uk2[3];
+    short uk;
+    CString Name <fgcolor=cGreen>;
+    int uk;
+    int uk;
+    CString Name <fgcolor=cGreen>;    
+};
+
+struct MeshSetGrid {
+    int magic;
+    int uk;
+    CString Hash;
+    short uk;
+    CString Uk;
+    int uk1[12];
+    CString Uk;
+    int uk2[2];
+    short uk;
+    CString Uk;
+    int uk3[2];
+    CString Uk;
+    int uk4[1];
+    CString Uk;
+    byte uk6[829];
+};
 
 local string filter = "*";
 
@@ -741,7 +764,7 @@ if(Magic==-981667554){
 			byte zeros[16]; //confirmed zero
 			int negOne <format=hex>; //confirmed
 			int one;//confirmed
-			int uk2;
+			int nodeInformationCount;
 			int zero;//confirmed zero
 		} RootNodeInfo <fgcolor=cGreen>;
 
@@ -806,6 +829,10 @@ if(Magic==-981667554){
 							CDrwLocatorList locList;
 						else if (Strcmp(Name.Text, "CGeoOBBTree") == 0)
 							CGeoOBBTree obbTree;
+                        else if (Strcmp(Name.Text, "StateBasedMeshSet") == 0)
+                            StateBasedMeshSet stateBasedMeshSet;
+                        else if (Strcmp(Name.Text, "MeshSetGrid") == 0)
+                            MeshSetGrid meshSetGrid;
 						else {
 							Printf("\nunknown Node Name %s \n",Name.Text);
 							byte Data[NodeInformation[j].Size];
