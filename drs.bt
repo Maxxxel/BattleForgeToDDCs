@@ -55,7 +55,7 @@ struct CGeoMesh //seems to rebuild the MeshFile, but with fewer vertices (meshfi
 
 struct CSkSkinInfo
 {
-    int Version <fgcolor=cGreen>;
+    int Version <fgcolor=cGreen>; // Always 1
     int VertexCount <fgcolor=cGreen>;
 
     struct _VertexWeight
@@ -84,19 +84,14 @@ struct CDspMeshFile
     Vector3 BoundingBoxUpperRightCorner1 <fgcolor=cGreen>;
 
     struct sthMesh{
-
         int VertexCount <fgcolor=cGreen>;
         int TriangleCount <fgcolor=cGreen>;
-
         Triangle Triangles[TriangleCount] <fgcolor=cGreen>;
-
-
         byte MeshCount <fgcolor=cGreen>;
-
 
         struct _Mesh
         {
-            int Revision <fgcolor=cGreen>;
+            int Revision <fgcolor=cGreen>; // 12, 2049, 12288, 133121
             int VertexSize <fgcolor=cGreen>;
 
             if(Revision == 133121){
@@ -124,10 +119,8 @@ struct CDspMeshFile
 
          } Meshes[MeshCount] <optimize=false>;
 
-
         Vector3 BoundingBoxLowerLeftCorner2 <fgcolor=cGreen>; //seems like same BB as before
         Vector3 BoundingBoxUpperRightCorner2 <fgcolor=cGreen>;
-
         short materialID <fgcolor=cGreen>;
         int materialParameters <fgcolor=cGreen>;
 
@@ -359,7 +352,15 @@ struct AnimationSet
 
     float DefaultRunSpeed <fgcolor=cGreen>;
     float DefaultWalkSpeed <fgcolor=cGreen>;
-    int Revision <fgcolor=cGreen>;
+
+    if (Count == 2)
+    {
+        int ModeAnimationKeyCount <fgcolor=cGreen>;
+    }
+    else
+    {
+        int Revision <fgcolor=cGreen>;
+    }
 
     if (Count >= 6) //> should not happen -> Count == 6
     {
@@ -379,12 +380,21 @@ struct AnimationSet
         if (Revision >= 6)
             byte AlignToTerrain <fgcolor=cGreen>;
     }
-
-    int ModeAnimationKeyCount <fgcolor=cGreen>;
-
+    
+    if (Count == 2)
+    {
+        int uk;
+    }
+    else
+    {
+        int ModeAnimationKeyCount <fgcolor=cGreen>;
+        local int uk = 0;
+    }
+    
     struct _ModeAnimationKey
     {
-        int Type <fgcolor=cGreen>;
+        if (uk != 2) int Type <fgcolor=cGreen>;
+        if (uk == 2) local int Type = 2;
         CString Magic2 <fgcolor=cGreen>;
         int Unknown11 <fgcolor=cRed>;
 
@@ -436,6 +446,7 @@ struct AnimationSet
                 byte Unknown31 <fgcolor=cRed>;
             }
         } Variants[VariantCount] <optimize=false>;
+        if (Type == 2) int uk;
     } AnimationKeys[ModeAnimationKeyCount] <optimize=false>;
 
 
@@ -616,7 +627,7 @@ struct EffectSet{
                 float psMax <fgcolor=cGreen>;
                 Vector3 offset <fgcolor=cGreen>;
                 byte interruptable <fgcolor=cGreen>;
-                byte uk <fgcolor=cRed>;
+                if (type != 10 && type != 11) byte uk <fgcolor=cRed>;
                 int len2 <fgcolor=cGreen>;
 
                 struct Wav{
@@ -793,14 +804,16 @@ if(Magic==-981667554){
 			local int NodeIndex = i;
 			int InfoIndex <fgcolor=cGreen>;
 			CString Name <fgcolor=cGreen>;
-			int Unknown <fgcolor=cRed>; //ChildCount?
+			int Zero <fgcolor=cGreen>; //ChildCount?
 
 			local int j;
 			local int64 oldPosition;
 			for (j = NodeCount-2; j >= 0; j--)
 			{
-				if (NodeInformation[j].Identifier != NodeIndex)
+				if (NodeInformation[j].Identifier != NodeIndex) {
+                    Printf("Weird Error!");
 					continue;
+                }
 
 				oldPosition = FTell();
 				FSeek(NodeInformation[j].Offset);
@@ -839,6 +852,10 @@ if(Magic==-981667554){
 						}
 					}
 				}
+                else
+                {
+                    Printf("Size too small!");
+                }
 				FSeek(oldPosition);
 				break;
 			}
